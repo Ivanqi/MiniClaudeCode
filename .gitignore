@@ -1,0 +1,8 @@
+__pycache__
+.mailboxes
+.tasks
+.worktrees
+src/__pycache__
+.vscode
+.env
+old_code
