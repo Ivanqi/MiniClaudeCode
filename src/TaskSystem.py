@@ -37,6 +37,7 @@ class TaskSystem:
     def _task_path(self, task_id: str) -> Path:
         return self.tasks_dir / f"{task_id}.json"
 
+    # 创建任务
     def create_task(self, subject: str, description: str = "",
                     blockedBy: list[str] | None = None) -> Task:
         task = Task(
@@ -47,6 +48,7 @@ class TaskSystem:
         self.save_task(task)
         return task
 
+    # 任务存储
     def save_task(self, task: Task):
         self._task_path(task.id).write_text(json.dumps(asdict(task), indent=2))
 

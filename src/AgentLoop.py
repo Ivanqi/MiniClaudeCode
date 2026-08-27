@@ -49,6 +49,7 @@ class AgentLoop:
 
         # 工具注册表:各系统自持工具定义与处理器,在此聚合。
         self.tool_registry = ToolRegistry(self.mcp)
+        # 通过 handlers() 方法返回该字典的副本或直接引用，供外部查询或调用
         for system in (self.basic, TASK_SYSTEM, WORKTREE_SYSTEM, SKILL_SYSTEM,
                        self.cron, self.mcp, self.teammates, self.subagents,
                        self.compact):
@@ -58,16 +59,21 @@ class AgentLoop:
         self._lock = threading.Lock()
 
     # ── 上下文管道 ──
-
+    # message 预处理
+    # 1. tool message 大结果落盘
     def prepare_context(self, messages: list) -> list:
         """每个 LLM 轮次都经过同一上下文预算管道。"""
+        # tool message 大结果落盘
         messages[:] = self.compact.tool_result_budget(messages)
+        # 裁掉无关的旧对话:消息数超过 50 条 → 保留头部 3 条（初始上下文）和尾部 47 条（当前工作），中间裁掉
         messages[:] = self.compact.snip_compact(messages)
+        # 只保留最近 3 条 tool_result 的完整内容
         messages[:] = self.compact.micro_compact(messages)
         if self.compact.estimate_size(messages) > Configs.CONTEXT_LIMIT:
+            # 替换消息列表：所有旧消息被替换为一条摘要
             messages[:] = self.compact.compact_history(messages, self.client)
         return messages
-
+    
     def build_tool_results(self, results: list[dict]) -> list[dict]:
         """工具结果 + 后台完成通知,一起作为本轮工具消息回传。"""
         content = list(results)
@@ -83,6 +89,7 @@ class AgentLoop:
     def call_llm(self, messages: list, context: dict, tools: list,
                  state: RecoveryState, max_tokens: int):
         system = self.prompt_builder.assemble(context)
+        # tools llm function call 定义
         return with_retry(
             lambda: self.client.create(messages, system=system, tools=tools,
                                        max_tokens=max_tokens,
@@ -113,8 +120,14 @@ class AgentLoop:
             tools, handlers = self.tool_registry.assemble()
 
             try:
+                print("call_llm args")
+                print(messages)
+                print(context)
+                # print(tools)
                 response = self.call_llm(messages, context, tools, state, max_tokens)
+                print(response)
             except Exception as e:
+                # 应急
                 if is_prompt_too_long_error(e) and not state.has_attempted_reactive_compact:
                     messages[:] = self.compact.reactive_compact(messages, self.client)
                     state.has_attempted_reactive_compact = True
@@ -122,7 +135,6 @@ class AgentLoop:
                 messages.append({"role": "assistant",
                                  "content": f"[Error] {type(e).__name__}: {e}"})
                 return
-
             if response.finish_reason == "length":
                 if not state.has_escalated:
                     max_tokens = Configs.ESCALATED_MAX_TOKENS
@@ -146,6 +158,7 @@ class AgentLoop:
 
             results = []
             compacted_now = False
+            # function call
             for call in response.tool_calls:
                 Terminal.print(f"{Terminal.CYAN}> {call.name}{Terminal.RESET}")
 
@@ -161,6 +174,7 @@ class AgentLoop:
                     results.append(tool_message(call.id, str(blocked)))
                     continue
 
+                # 慢操作放后台
                 if self.background.should_run_background(call.name, call.arguments):
                     bg_id = self.background.start(call, handlers)
                     output = (f"[Background task {bg_id} started] "
@@ -168,6 +182,7 @@ class AgentLoop:
                     results.append(tool_message(call.id, output))
                     continue
 
+                # tool handler 辅助工具
                 handler = handlers.get(call.name)
                 output = self.basic.call_tool_handler(handler, call.arguments, call.name)
                 self.hooks.trigger("PostToolUse", call, output)
@@ -183,6 +198,7 @@ class AgentLoop:
             if compacted_now:
                 continue
 
+            # 通知和工具结果合入同一条 user 消息
             messages.extend(self.build_tool_results(results))
 
     # ── 输出与定时 ──
@@ -215,7 +231,7 @@ class AgentLoop:
 
     def run_cli(self):
         self.cron.start()
-        Terminal.print("MiniClaudeCode: DeepSeek-powered coding agent")
+        Terminal.print("MiniClaudeCode: coding agent")
         Terminal.print("Enter a question, press Enter to send. Type q to quit.\n")
         history: list[dict] = []
         context = self.memories.update_context({}, history)

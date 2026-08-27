@@ -6,3 +6,5 @@ src/__pycache__
 .vscode
 .env
 old_code
+.scheduled_tasks.json
+.editorconfig
