@@ -41,7 +41,11 @@ class TeammateSystem:
         self.basic = basic
 
     # ── 自治代理:空闲轮询 ──
-
+    # 扫描任务看板
+    '''
+    必须是 pending、没有 owner、所有 blockedBy 依赖已完成。
+    scan_start 检查依赖任务的状态有依赖不代表不能做，只有被未完成的任务阻塞才不能做。
+    '''
     def scan_unclaimed_tasks(self) -> list[dict]:
         unclaimed = []
         for f in sorted(self.tasks.tasks_dir.glob("task_*.json")):
@@ -52,10 +56,39 @@ class TeammateSystem:
                 unclaimed.append(task)
         return unclaimed
 
+    '''
+    idle_poll 是队友在无任务时执行的轮询逻辑，用于检查收件箱中的新消息或系统中可认领的新任务，并返回状态指示（"work"、"shutdown" 或 "timeout"）。
+        agent_name：当前队友的名字。
+
+        messages：对话消息列表（用于在发现新消息时插入上下文）。
+
+        name 和 role：队友身份，用于消息构造（但未直接使用，可能用于日志）。
+
+        worktree_context：可选字典，用于在认领带工作树的任务时更新路径。
+    '''
     def idle_poll(self, agent_name: str, messages: list,
                   name: str, role: str,
                   worktree_context: dict | None = None) -> str:
         """空闲轮询:收件箱消息优先于可认领任务。"""
+        '''
+        轮询次数：总等待时间 = Configs.IDLE_TIMEOUT（例如 60 秒），每次间隔 Configs.IDLE_POLL_INTERVAL（例如 2 秒）。
+
+        收件箱优先：每次醒来先检查收件箱：
+
+        若存在 shutdown_request，立即响应关机并返回 "shutdown"。
+
+        否则，将整个收件箱内容作为一条用户消息加入对话，并返回 "work"（表示有消息需处理）。
+
+        无消息时查找新任务：
+
+        调用 scan_unclaimed_tasks 获取所有待认领且满足依赖条件的任务。
+
+        认领第一个任务（claim_task）：
+
+        若成功，提取工作树信息，更新 worktree_context（若提供），并构造自动认领消息加入对话，返回 "work"。
+
+        超时：若整个循环结束仍未找到工作，返回 "timeout"，主循环将退出线程。
+        '''
         for _ in range(Configs.IDLE_TIMEOUT // Configs.IDLE_POLL_INTERVAL):
             time.sleep(Configs.IDLE_POLL_INTERVAL)
             inbox = self.bus.read_inbox(agent_name)
@@ -87,7 +120,7 @@ class TeammateSystem:
         return "timeout"
 
     # ── 队友线程 ──
-
+   
     def spawn(self, name: str, role: str, prompt: str) -> str:
         if self.teammates.contains(name):
             return f"Teammate '{name}' already exists"
@@ -96,7 +129,16 @@ class TeammateSystem:
                          daemon=True).start()
         return f"Teammate '{name}' spawned as {role}"
 
+    # _run_teammate 方法是自治队友线程的核心
+    # 它实现了一个具有自主工作循环、计划审批闸门和任务认领能力的智能代理
     def _run_teammate(self, name: str, role: str, prompt: str):
+        '''
+        protocol_ctx：记录当前正在等待审批的计划请求ID（waiting_plan），非空时队友不会执行任何模型/工具步骤，实现“审批闸门”。
+
+        system：系统提示，固定队友身份。
+
+        wt_ctx：保存当前工作树路径（若有），使得后续文件操作自动在该目录下进行。
+        '''
         protocol_ctx = {"waiting_plan": None}
         system = (f"You are '{name}', a {role}. "
                   f"Use tools to complete tasks. "
@@ -104,7 +146,12 @@ class TeammateSystem:
         wt_ctx = {"path": None}
 
         # ── 工具包装:认领带 worktree 的任务后,文件工具透明地改在该目录内执行 ──
+        '''
+        工作树辅助函数
+            _wt_cwd() 返回当前工作树路径（若有），否则返回 None。
 
+            三个文件/命令执行函数均将 cwd 参数传递给底层 BasicOper，确保操作在工作树目录内进行。
+        '''
         def _wt_cwd():
             p = wt_ctx["path"]
             return Path(p) if p else None
@@ -118,6 +165,14 @@ class TeammateSystem:
         def _run_write(path: str, content: str) -> str:
             return self.basic.run_write(path, content, cwd=_wt_cwd())
 
+        '''
+        任务相关辅助函数
+            这三个函数实现了队友对任务的查看、认领和完成能力。
+
+            认领任务时，若任务关联了工作树，则自动设置 wt_ctx["path"]，使后续操作在该工作树目录内执行。
+
+            完成任务后，清空工作树路径。
+        '''
         def _run_list_tasks():
             tasks = self.tasks.list_tasks()
             if not tasks:
@@ -140,6 +195,13 @@ class TeammateSystem:
             wt_ctx["path"] = None
             return result
 
+        '''
+        收件箱消息处理函数
+            处理两类特殊消息：
+                关机请求：回复确认，并返回 True 表示需要退出线程。
+
+                计划审批回复：若匹配当前等待的请求ID，则清除等待标记，并将审批结果作为用户消息加入对话历史，以便模型知悉。
+        '''
         def handle_inbox_message(msg: dict, messages: list) -> bool:
             """处理收件箱消息;返回 True 表示收到关机指令。"""
             msg_type = msg.get("type", "message")
@@ -209,12 +271,24 @@ class TeammateSystem:
 
         messages = [user_message(prompt)]
         while True:
+            '''
+            初始消息为 prompt。
+            若消息数量不足 3，注入身份提醒，确保模型始终清楚自身角色（循环中可能因压缩导致身份信息丢失）。
+            '''
             if len(messages) <= 3:
                 messages.insert(0, user_message(
                     f"<identity>You are '{name}', role: {role}. "
                     f"Continue your work.</identity>"))
+
+            '''
+            每次内层循环首先读取收件箱，处理协议消息（关机、计划审批）。
+
+            若处于 waiting_plan 状态，则不断轮询（等待审批回复），不执行任何模型或工具调用，真正实现“审批闸门”。
+
+            若非等待状态，则将有收件箱中的普通消息（非协议）作为用户消息注入对话。
+            '''
             should_shutdown = False
-            for _ in range(self.INNER_ROUND_LIMIT):
+            for _ in range(self.INNER_ROUND_LIMIT): # 最多10轮
                 inbox = self.bus.read_inbox(name)
                 for msg in inbox:
                     if handle_inbox_message(msg, messages):
@@ -231,6 +305,21 @@ class TeammateSystem:
                     if non_protocol:
                         messages.append(user_message(
                             "<inbox>" + json.dumps(non_protocol) + "</inbox>"))
+                '''
+                调用 LLM，传入最近的 MESSAGE_WINDOW 条消息、系统提示、工具定义。
+
+                将模型回复加入 messages。
+
+                若模型未请求工具调用，则结束内层循环（进入空闲轮询）。
+
+                遍历工具调用：
+
+                    若为 submit_plan，调用 self.submit_plan，从返回值中提取请求ID，并设置 waiting_plan（即进入审批闸门）。
+
+                    其他工具调用，通过 handlers 执行，并将结果以 tool_message 加入。
+
+                    若 waiting_plan 被设置（即刚提交了计划），则 忽略后续的工具调用（因为模型可能在同一回复中请求多个工具，但提交计划后应立即暂停，等待审批），并立即跳出内层循环。
+                '''
                 try:
                     response = self.client.create(
                         messages[-self.MESSAGE_WINDOW:], system=system,
@@ -257,6 +346,13 @@ class TeammateSystem:
                 messages.extend(results)
                 if protocol_ctx["waiting_plan"]:
                     break
+            '''
+            若收到关机请求则退出。
+
+            若正在等待审批，则 continue 回到外层循环顶部，跳过空闲轮询（因为审批闸门开启时，队友不应主动扫任务）。
+
+            否则，调用 idle_poll 进行空闲轮询（扫描收件箱、认领未分配任务）。若返回 shutdown 或 timeout，则退出外层循环。
+            '''
             if should_shutdown:
                 break
             if protocol_ctx["waiting_plan"]:
@@ -265,6 +361,13 @@ class TeammateSystem:
             if idle_result in ("shutdown", "timeout"):
                 break
 
+        '''
+        从最后一条助手消息中提取非空文本作为最终总结。
+
+        向 lead 发送结果消息（类型为 "result"）。
+
+        从 ActiveTeammates 中移除该队友（释放资源）。
+        '''
         summary = "Done."
         for msg in reversed(messages):
             if msg.get("role") == "assistant":

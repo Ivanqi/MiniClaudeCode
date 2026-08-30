@@ -88,6 +88,7 @@ class AgentLoop:
 
     def call_llm(self, messages: list, context: dict, tools: list,
                  state: RecoveryState, max_tokens: int):
+        # 提示词 和 skills 加载
         system = self.prompt_builder.assemble(context)
         # tools llm function call 定义
         return with_retry(
