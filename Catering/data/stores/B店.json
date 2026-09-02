@@ -1,0 +1,389 @@
+{
+  "store_id": "B店",
+  "days": [
+    {
+      "date": "2026-08-25",
+      "revenue": 88000.0,
+      "traffic": 1600,
+      "ticket": 55.0,
+      "rating": 4.6,
+      "review_count": 55,
+      "complaints": 0,
+      "staff_on_duty": 10,
+      "staff_planned": 10,
+      "dishes": [
+        {
+          "category": "商务套餐",
+          "share": 0.35,
+          "ticket": 60.0,
+          "revenue": 30799.999999999996,
+          "orders": 513
+        },
+        {
+          "category": "招牌菜",
+          "share": 0.3,
+          "ticket": 70.0,
+          "revenue": 26400.0,
+          "orders": 377
+        },
+        {
+          "category": "面食小吃",
+          "share": 0.2,
+          "ticket": 25.0,
+          "revenue": 17600.0,
+          "orders": 704
+        },
+        {
+          "category": "饮品",
+          "share": 0.1,
+          "ticket": 15.0,
+          "revenue": 8800.0,
+          "orders": 587
+        },
+        {
+          "category": "引流套餐",
+          "share": 0.05,
+          "ticket": 30.0,
+          "revenue": 4400.0,
+          "orders": 147
+        }
+      ]
+    },
+    {
+      "date": "2026-08-26",
+      "revenue": 88000.0,
+      "traffic": 1600,
+      "ticket": 55.0,
+      "rating": 4.6,
+      "review_count": 55,
+      "complaints": 0,
+      "staff_on_duty": 10,
+      "staff_planned": 10,
+      "dishes": [
+        {
+          "category": "商务套餐",
+          "share": 0.35,
+          "ticket": 60.0,
+          "revenue": 30799.999999999996,
+          "orders": 513
+        },
+        {
+          "category": "招牌菜",
+          "share": 0.3,
+          "ticket": 70.0,
+          "revenue": 26400.0,
+          "orders": 377
+        },
+        {
+          "category": "面食小吃",
+          "share": 0.2,
+          "ticket": 25.0,
+          "revenue": 17600.0,
+          "orders": 704
+        },
+        {
+          "category": "饮品",
+          "share": 0.1,
+          "ticket": 15.0,
+          "revenue": 8800.0,
+          "orders": 587
+        },
+        {
+          "category": "引流套餐",
+          "share": 0.05,
+          "ticket": 30.0,
+          "revenue": 4400.0,
+          "orders": 147
+        }
+      ]
+    },
+    {
+      "date": "2026-08-27",
+      "revenue": 88000.0,
+      "traffic": 1600,
+      "ticket": 55.0,
+      "rating": 4.6,
+      "review_count": 55,
+      "complaints": 0,
+      "staff_on_duty": 10,
+      "staff_planned": 10,
+      "dishes": [
+        {
+          "category": "商务套餐",
+          "share": 0.35,
+          "ticket": 60.0,
+          "revenue": 30799.999999999996,
+          "orders": 513
+        },
+        {
+          "category": "招牌菜",
+          "share": 0.3,
+          "ticket": 70.0,
+          "revenue": 26400.0,
+          "orders": 377
+        },
+        {
+          "category": "面食小吃",
+          "share": 0.2,
+          "ticket": 25.0,
+          "revenue": 17600.0,
+          "orders": 704
+        },
+        {
+          "category": "饮品",
+          "share": 0.1,
+          "ticket": 15.0,
+          "revenue": 8800.0,
+          "orders": 587
+        },
+        {
+          "category": "引流套餐",
+          "share": 0.05,
+          "ticket": 30.0,
+          "revenue": 4400.0,
+          "orders": 147
+        }
+      ]
+    },
+    {
+      "date": "2026-08-28",
+      "revenue": 88000.0,
+      "traffic": 1600,
+      "ticket": 55.0,
+      "rating": 4.6,
+      "review_count": 55,
+      "complaints": 0,
+      "staff_on_duty": 10,
+      "staff_planned": 10,
+      "dishes": [
+        {
+          "category": "商务套餐",
+          "share": 0.35,
+          "ticket": 60.0,
+          "revenue": 30799.999999999996,
+          "orders": 513
+        },
+        {
+          "category": "招牌菜",
+          "share": 0.3,
+          "ticket": 70.0,
+          "revenue": 26400.0,
+          "orders": 377
+        },
+        {
+          "category": "面食小吃",
+          "share": 0.2,
+          "ticket": 25.0,
+          "revenue": 17600.0,
+          "orders": 704
+        },
+        {
+          "category": "饮品",
+          "share": 0.1,
+          "ticket": 15.0,
+          "revenue": 8800.0,
+          "orders": 587
+        },
+        {
+          "category": "引流套餐",
+          "share": 0.05,
+          "ticket": 30.0,
+          "revenue": 4400.0,
+          "orders": 147
+        }
+      ]
+    },
+    {
+      "date": "2026-08-29",
+      "revenue": 88000.0,
+      "traffic": 1600,
+      "ticket": 55.0,
+      "rating": 4.6,
+      "review_count": 55,
+      "complaints": 0,
+      "staff_on_duty": 10,
+      "staff_planned": 10,
+      "dishes": [
+        {
+          "category": "商务套餐",
+          "share": 0.35,
+          "ticket": 60.0,
+          "revenue": 30799.999999999996,
+          "orders": 513
+        },
+        {
+          "category": "招牌菜",
+          "share": 0.3,
+          "ticket": 70.0,
+          "revenue": 26400.0,
+          "orders": 377
+        },
+        {
+          "category": "面食小吃",
+          "share": 0.2,
+          "ticket": 25.0,
+          "revenue": 17600.0,
+          "orders": 704
+        },
+        {
+          "category": "饮品",
+          "share": 0.1,
+          "ticket": 15.0,
+          "revenue": 8800.0,
+          "orders": 587
+        },
+        {
+          "category": "引流套餐",
+          "share": 0.05,
+          "ticket": 30.0,
+          "revenue": 4400.0,
+          "orders": 147
+        }
+      ]
+    },
+    {
+      "date": "2026-08-30",
+      "revenue": 88000.0,
+      "traffic": 1600,
+      "ticket": 55.0,
+      "rating": 4.6,
+      "review_count": 55,
+      "complaints": 0,
+      "staff_on_duty": 10,
+      "staff_planned": 10,
+      "dishes": [
+        {
+          "category": "商务套餐",
+          "share": 0.35,
+          "ticket": 60.0,
+          "revenue": 30799.999999999996,
+          "orders": 513
+        },
+        {
+          "category": "招牌菜",
+          "share": 0.3,
+          "ticket": 70.0,
+          "revenue": 26400.0,
+          "orders": 377
+        },
+        {
+          "category": "面食小吃",
+          "share": 0.2,
+          "ticket": 25.0,
+          "revenue": 17600.0,
+          "orders": 704
+        },
+        {
+          "category": "饮品",
+          "share": 0.1,
+          "ticket": 15.0,
+          "revenue": 8800.0,
+          "orders": 587
+        },
+        {
+          "category": "引流套餐",
+          "share": 0.05,
+          "ticket": 30.0,
+          "revenue": 4400.0,
+          "orders": 147
+        }
+      ]
+    },
+    {
+      "date": "2026-08-31",
+      "revenue": 88000.0,
+      "traffic": 1600,
+      "ticket": 55.0,
+      "rating": 4.6,
+      "review_count": 55,
+      "complaints": 0,
+      "staff_on_duty": 10,
+      "staff_planned": 10,
+      "dishes": [
+        {
+          "category": "商务套餐",
+          "share": 0.35,
+          "ticket": 60.0,
+          "revenue": 30799.999999999996,
+          "orders": 513
+        },
+        {
+          "category": "招牌菜",
+          "share": 0.3,
+          "ticket": 70.0,
+          "revenue": 26400.0,
+          "orders": 377
+        },
+        {
+          "category": "面食小吃",
+          "share": 0.2,
+          "ticket": 25.0,
+          "revenue": 17600.0,
+          "orders": 704
+        },
+        {
+          "category": "饮品",
+          "share": 0.1,
+          "ticket": 15.0,
+          "revenue": 8800.0,
+          "orders": 587
+        },
+        {
+          "category": "引流套餐",
+          "share": 0.05,
+          "ticket": 30.0,
+          "revenue": 4400.0,
+          "orders": 147
+        }
+      ]
+    },
+    {
+      "date": "2026-09-01",
+      "revenue": 79200.0,
+      "traffic": 1920,
+      "ticket": 41.25,
+      "rating": 4.5,
+      "review_count": 91,
+      "complaints": 2,
+      "staff_on_duty": 10,
+      "staff_planned": 10,
+      "dishes": [
+        {
+          "category": "引流套餐",
+          "share": 0.3,
+          "ticket": 12.0,
+          "revenue": 23760.0,
+          "orders": 1980
+        },
+        {
+          "category": "商务套餐",
+          "share": 0.25,
+          "ticket": 60.0,
+          "revenue": 19800.0,
+          "orders": 330
+        },
+        {
+          "category": "招牌菜",
+          "share": 0.2,
+          "ticket": 70.0,
+          "revenue": 15840.0,
+          "orders": 226
+        },
+        {
+          "category": "面食小吃",
+          "share": 0.15,
+          "ticket": 25.0,
+          "revenue": 11880.0,
+          "orders": 475
+        },
+        {
+          "category": "饮品",
+          "share": 0.1,
+          "ticket": 15.0,
+          "revenue": 7920.0,
+          "orders": 528
+        }
+      ]
+    }
+  ]
+}

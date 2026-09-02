@@ -166,10 +166,23 @@ CLI 中直接输入问题回车发送，`q` / `exit` / 空行退出。
 python -m unittest discover -s tests -v
 ```
 
-33 个用例全通过：
+65 个用例全通过：
 
 - **test_core.py（31 个）**：cron 表达式校验与匹配（`*/5`、范围、列表、dom/dow 或语义）、任务生命周期与依赖阻塞、DeepSeek 消息/工具格式构造与往返、错误分类、压缩预算与配对保护、工具注册表合并（内置 + MCP）、worktree 名称校验、文件工具与路径沙箱
 - **test_agent_loop.py（2 个）**：用 `FakeClient` 离线跑通完整主循环——验证工具确实执行、tool 消息与 tool_calls 配对回传、system prompt 注入、`length` 截断升级 max_tokens 后成功收尾
+- **test_catering.py（32 个）**：LMDI 贡献度拆解精确性/零基期健壮性、八类数据源健康与自洽校验、告警扫描、ToolGuard 拒绝与放行、工作流端到端（客流型/客单价型/正常对照三店）、单步失败不炸链、Reasoner 成功/重试/模板降级、报告篡改检测、探索模式工具调用/权限拦截/步数熔断、状态机持久化、诊断链校验、评测场景正负向
+
+## Catering 业务包
+
+`Catering/` 是第一个餐饮业务 Agent：**门店经营异常分析**。发现"某店营业额异常"后沿确定性诊断链（拆解 → 客流/客单价 → 时段 → 堂食/外卖 → 菜品结构 → 活动 → 评分 → 人员 → 外部因素 → 历史案例）逐层取数判定，不靠 LLM 猜原因：
+
+```bash
+python -m Catering.main --eval                        # 离线评测（无需 API Key）
+python -m Catering.main --store A店 --auto            # 工作流诊断 + LLM 归纳
+python -m Catering.main --agentic "A店客流为什么降?"  # 探索模式：LLM 自由调用餐饮工具
+```
+
+架构、数据契约、八类数据源映射与使用说明见 `Catering/readme.md`。
 
 ## 项目结构
 
@@ -200,7 +213,21 @@ MiniClaudeCode/
 │   ├── ActiveTeammates.py     #   活跃队友注册表
 │   ├── ToolRegistry.py        #   工具注册表
 │   └── AgentLoop.py           #   主循环与 CLI
-├── tests/                     # 33 个离线测试用例
+├── Catering/                  # 餐饮业务包：门店经营异常分析 Agent（详见 Catering/readme.md）
+│   ├── Configs.py             #   业务阈值/目录配置
+│   ├── Models.py              #   告警/发现/证据/报告/案例结构
+│   ├── DataHub.py             #   八类数据源抽象 + 模拟适配器
+│   ├── Metrics.py             #   LMDI 贡献度拆解等确定性计算
+│   ├── Tools.py               #   餐饮工具集（12 只读 + 1 受控写）
+│   ├── Workflow.py            #   诊断链引擎 + 状态机
+│   ├── Guardrails.py          #   规则/输出校验/工具权限
+│   ├── Reasoner.py            #   LLM 归纳 + 模板降级
+│   ├── Evaluator.py           #   离线评测体系
+│   ├── AnomalyAgent.py        #   双模式编排（工作流/探索，ToolRegistry+MCP 集成）
+│   ├── Scheduler.py           #   定时自动诊断（复用 CronScheduler）
+│   ├── gen_fixtures.py        #   样本数据生成器（确定性）
+│   └── main.py                #   CLI：--eval/--store/--agentic/--schedule/--tasks
+├── tests/                     # 65 个离线测试用例（核心 33 + Catering 32）
 ├── skills/                    # 技能目录（agent-builder / code-review / mcp-builder / pdf）
 ├── .env.example               # 环境变量模板
 └── requirements.txt           # httpx / python-dotenv / pyyaml

@@ -2,6 +2,7 @@ __pycache__
 .mailboxes
 .tasks
 .worktrees
+.catering
 src/__pycache__
 .vscode
 .env
@@ -9,3 +10,4 @@ old_code
 .scheduled_tasks.json
 .editorconfig
 skills
+需求/

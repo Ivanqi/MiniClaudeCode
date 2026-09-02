@@ -1,0 +1,333 @@
+{
+  "store_id": "A店",
+  "days": [
+    {
+      "date": "2026-08-25",
+      "revenue": 99000.0,
+      "traffic": 1800,
+      "ticket": 55.0,
+      "rating": 4.5,
+      "review_count": 42,
+      "complaints": 0,
+      "staff_on_duty": 12,
+      "staff_planned": 12,
+      "dishes": [
+        {
+          "category": "招牌炒菜",
+          "share": 0.35,
+          "ticket": 60.0,
+          "revenue": 34650.0,
+          "orders": 578
+        },
+        {
+          "category": "面食快餐",
+          "share": 0.25,
+          "ticket": 30.0,
+          "revenue": 24750.0,
+          "orders": 825
+        },
+        {
+          "category": "套餐组合",
+          "share": 0.25,
+          "ticket": 55.0,
+          "revenue": 24750.0,
+          "orders": 450
+        },
+        {
+          "category": "饮品甜点",
+          "share": 0.15,
+          "ticket": 20.0,
+          "revenue": 14850.0,
+          "orders": 742
+        }
+      ]
+    },
+    {
+      "date": "2026-08-26",
+      "revenue": 99000.0,
+      "traffic": 1800,
+      "ticket": 55.0,
+      "rating": 4.5,
+      "review_count": 42,
+      "complaints": 0,
+      "staff_on_duty": 12,
+      "staff_planned": 12,
+      "dishes": [
+        {
+          "category": "招牌炒菜",
+          "share": 0.35,
+          "ticket": 60.0,
+          "revenue": 34650.0,
+          "orders": 578
+        },
+        {
+          "category": "面食快餐",
+          "share": 0.25,
+          "ticket": 30.0,
+          "revenue": 24750.0,
+          "orders": 825
+        },
+        {
+          "category": "套餐组合",
+          "share": 0.25,
+          "ticket": 55.0,
+          "revenue": 24750.0,
+          "orders": 450
+        },
+        {
+          "category": "饮品甜点",
+          "share": 0.15,
+          "ticket": 20.0,
+          "revenue": 14850.0,
+          "orders": 742
+        }
+      ]
+    },
+    {
+      "date": "2026-08-27",
+      "revenue": 99000.0,
+      "traffic": 1800,
+      "ticket": 55.0,
+      "rating": 4.5,
+      "review_count": 42,
+      "complaints": 0,
+      "staff_on_duty": 12,
+      "staff_planned": 12,
+      "dishes": [
+        {
+          "category": "招牌炒菜",
+          "share": 0.35,
+          "ticket": 60.0,
+          "revenue": 34650.0,
+          "orders": 578
+        },
+        {
+          "category": "面食快餐",
+          "share": 0.25,
+          "ticket": 30.0,
+          "revenue": 24750.0,
+          "orders": 825
+        },
+        {
+          "category": "套餐组合",
+          "share": 0.25,
+          "ticket": 55.0,
+          "revenue": 24750.0,
+          "orders": 450
+        },
+        {
+          "category": "饮品甜点",
+          "share": 0.15,
+          "ticket": 20.0,
+          "revenue": 14850.0,
+          "orders": 742
+        }
+      ]
+    },
+    {
+      "date": "2026-08-28",
+      "revenue": 99000.0,
+      "traffic": 1800,
+      "ticket": 55.0,
+      "rating": 4.5,
+      "review_count": 42,
+      "complaints": 0,
+      "staff_on_duty": 12,
+      "staff_planned": 12,
+      "dishes": [
+        {
+          "category": "招牌炒菜",
+          "share": 0.35,
+          "ticket": 60.0,
+          "revenue": 34650.0,
+          "orders": 578
+        },
+        {
+          "category": "面食快餐",
+          "share": 0.25,
+          "ticket": 30.0,
+          "revenue": 24750.0,
+          "orders": 825
+        },
+        {
+          "category": "套餐组合",
+          "share": 0.25,
+          "ticket": 55.0,
+          "revenue": 24750.0,
+          "orders": 450
+        },
+        {
+          "category": "饮品甜点",
+          "share": 0.15,
+          "ticket": 20.0,
+          "revenue": 14850.0,
+          "orders": 742
+        }
+      ]
+    },
+    {
+      "date": "2026-08-29",
+      "revenue": 99000.0,
+      "traffic": 1800,
+      "ticket": 55.0,
+      "rating": 4.5,
+      "review_count": 42,
+      "complaints": 0,
+      "staff_on_duty": 12,
+      "staff_planned": 12,
+      "dishes": [
+        {
+          "category": "招牌炒菜",
+          "share": 0.35,
+          "ticket": 60.0,
+          "revenue": 34650.0,
+          "orders": 578
+        },
+        {
+          "category": "面食快餐",
+          "share": 0.25,
+          "ticket": 30.0,
+          "revenue": 24750.0,
+          "orders": 825
+        },
+        {
+          "category": "套餐组合",
+          "share": 0.25,
+          "ticket": 55.0,
+          "revenue": 24750.0,
+          "orders": 450
+        },
+        {
+          "category": "饮品甜点",
+          "share": 0.15,
+          "ticket": 20.0,
+          "revenue": 14850.0,
+          "orders": 742
+        }
+      ]
+    },
+    {
+      "date": "2026-08-30",
+      "revenue": 99000.0,
+      "traffic": 1800,
+      "ticket": 55.0,
+      "rating": 4.5,
+      "review_count": 42,
+      "complaints": 0,
+      "staff_on_duty": 12,
+      "staff_planned": 12,
+      "dishes": [
+        {
+          "category": "招牌炒菜",
+          "share": 0.35,
+          "ticket": 60.0,
+          "revenue": 34650.0,
+          "orders": 578
+        },
+        {
+          "category": "面食快餐",
+          "share": 0.25,
+          "ticket": 30.0,
+          "revenue": 24750.0,
+          "orders": 825
+        },
+        {
+          "category": "套餐组合",
+          "share": 0.25,
+          "ticket": 55.0,
+          "revenue": 24750.0,
+          "orders": 450
+        },
+        {
+          "category": "饮品甜点",
+          "share": 0.15,
+          "ticket": 20.0,
+          "revenue": 14850.0,
+          "orders": 742
+        }
+      ]
+    },
+    {
+      "date": "2026-08-31",
+      "revenue": 99000.0,
+      "traffic": 1800,
+      "ticket": 55.0,
+      "rating": 4.5,
+      "review_count": 42,
+      "complaints": 0,
+      "staff_on_duty": 12,
+      "staff_planned": 12,
+      "dishes": [
+        {
+          "category": "招牌炒菜",
+          "share": 0.35,
+          "ticket": 60.0,
+          "revenue": 34650.0,
+          "orders": 578
+        },
+        {
+          "category": "面食快餐",
+          "share": 0.25,
+          "ticket": 30.0,
+          "revenue": 24750.0,
+          "orders": 825
+        },
+        {
+          "category": "套餐组合",
+          "share": 0.25,
+          "ticket": 55.0,
+          "revenue": 24750.0,
+          "orders": 450
+        },
+        {
+          "category": "饮品甜点",
+          "share": 0.15,
+          "ticket": 20.0,
+          "revenue": 14850.0,
+          "orders": 742
+        }
+      ]
+    },
+    {
+      "date": "2026-09-01",
+      "revenue": 81180.0,
+      "traffic": 1350,
+      "ticket": 60.133333,
+      "rating": 4.4,
+      "review_count": 38,
+      "complaints": 1,
+      "staff_on_duty": 12,
+      "staff_planned": 12,
+      "dishes": [
+        {
+          "category": "招牌炒菜",
+          "share": 0.35,
+          "ticket": 60.0,
+          "revenue": 28413.0,
+          "orders": 474
+        },
+        {
+          "category": "面食快餐",
+          "share": 0.25,
+          "ticket": 30.0,
+          "revenue": 20295.0,
+          "orders": 676
+        },
+        {
+          "category": "套餐组合",
+          "share": 0.25,
+          "ticket": 55.0,
+          "revenue": 20295.0,
+          "orders": 369
+        },
+        {
+          "category": "饮品甜点",
+          "share": 0.15,
+          "ticket": 20.0,
+          "revenue": 12177.0,
+          "orders": 609
+        }
+      ]
+    }
+  ]
+}

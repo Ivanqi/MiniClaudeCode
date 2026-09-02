@@ -1,0 +1,13 @@
+{
+  "records": [
+    {
+      "store_id": "B店",
+      "date": "2026-09-01",
+      "name": "9.9元引流套餐",
+      "type": "low_price_set",
+      "channel": "堂食+外卖",
+      "discount_pct": 55.0,
+      "detail": "9.9 元套餐(原价 22 元)上线首日,主走外卖渠道,低价引流目的"
+    }
+  ]
+}

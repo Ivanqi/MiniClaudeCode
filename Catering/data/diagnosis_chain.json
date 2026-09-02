@@ -1,0 +1,159 @@
+{
+  "schema_version": 1,
+  "name": "store_revenue_anomaly",
+  "description": "门店营业额异常诊断链:拆解 → 客流/客单价 → 时段 → 堂食/外卖 → 菜品结构 → 活动 → 评分 → 人员 → 外部因素 → 历史案例。运营团队可直接修改本文件调整诊断步骤与阈值,无需改动代码。",
+  "steps": [
+    {
+      "id": "decompose",
+      "title": "营业额贡献度拆解",
+      "dimension": "decompose",
+      "tool": "analyze_revenue_decomposition",
+      "args": {"store_id": "{{store_id}}", "date": "{{date}}"},
+      "when": "always",
+      "rules": [
+        {"metric": "pct_change", "op": "le", "threshold": -10.0,
+         "verdict": "anomaly",
+         "summary": "营业额同比下降 {value:.1f}%,确认经营异常成立"}
+      ]
+    },
+    {
+      "id": "traffic",
+      "title": "客流检查",
+      "dimension": "traffic",
+      "tool": "query_metrics",
+      "args": {"store_id": "{{store_id}}", "date": "{{date}}", "metrics": ["traffic"]},
+      "when": "always",
+      "rules": [
+        {"metric": "traffic.pct_change", "op": "le", "threshold": -10.0,
+         "verdict": "anomaly",
+         "summary": "客流同比下降 {value:.1f}%,超过阈值 {threshold}%"}
+      ]
+    },
+    {
+      "id": "ticket",
+      "title": "客单价检查",
+      "dimension": "ticket",
+      "tool": "query_metrics",
+      "args": {"store_id": "{{store_id}}", "date": "{{date}}", "metrics": ["ticket"]},
+      "when": "always",
+      "rules": [
+        {"metric": "ticket.pct_change", "op": "le", "threshold": -8.0,
+         "verdict": "anomaly",
+         "summary": "客单价同比下降 {value:.1f}%,超过阈值 {threshold}%"}
+      ]
+    },
+    {
+      "id": "periods",
+      "title": "时段分布检查",
+      "dimension": "periods",
+      "tool": "query_period_breakdown",
+      "args": {"store_id": "{{store_id}}", "date": "{{date}}"},
+      "when": "always",
+      "rules": [
+        {"metric": "analysis.top_negative_share", "op": "ge", "threshold": 0.6,
+         "verdict": "anomaly",
+         "summary": "客流降幅集中在 {analysis.top_negative_period} 时段(占比 {value:.1%}),是该时段经营下滑"}
+      ]
+    },
+    {
+      "id": "channels",
+      "title": "堂食/外卖渠道检查",
+      "dimension": "channels",
+      "tool": "query_channel_breakdown",
+      "args": {"store_id": "{{store_id}}", "date": "{{date}}"},
+      "when": "always",
+      "rules": [
+        {"metric": "analysis.top_negative_share", "op": "ge", "threshold": 0.6,
+         "verdict": "anomaly",
+         "summary": "营收降幅集中在 {analysis.top_negative_channel} 渠道(占比 {value:.1%})"}
+      ]
+    },
+    {
+      "id": "dish",
+      "title": "菜品结构检查",
+      "dimension": "dish",
+      "tool": "query_dish_structure",
+      "args": {"store_id": "{{store_id}}", "date": "{{date}}"},
+      "when": "always",
+      "rules": [
+        {"metric": "analysis.mix_effect", "op": "le", "threshold": -3.0,
+         "verdict": "anomaly",
+         "summary": "菜品结构向低价品类偏移(结构效应 {value:.2f} 元),拉低客单价"}
+      ]
+    },
+    {
+      "id": "promotion",
+      "title": "活动检查",
+      "dimension": "promotion",
+      "tool": "query_promotions",
+      "args": {"store_id": "{{store_id}}", "date": "{{date}}"},
+      "when": "always",
+      "rules": [
+        {"metric": "analysis.has_major_own_promo", "op": "eq", "threshold": true,
+         "verdict": "info",
+         "summary": "存在大型促销活动「{own.0.name}」,与客单价/菜品结构变化相关联"},
+        {"metric": "analysis.has_competitor_promo", "op": "eq", "threshold": true,
+         "verdict": "info",
+         "summary": "竞对存在促销活动「{competitor.0.name}」,可能分流客流"}
+      ]
+    },
+    {
+      "id": "rating",
+      "title": "评分检查",
+      "dimension": "rating",
+      "tool": "query_ratings",
+      "args": {"store_id": "{{store_id}}", "date": "{{date}}"},
+      "when": "always",
+      "rules": [
+        {"metric": "rating.delta", "op": "le", "threshold": -0.3,
+         "verdict": "anomaly",
+         "summary": "评分环比下降 {value:.2f},口碑出现下滑"},
+        {"metric": "rating.value", "op": "le", "threshold": 4.0,
+         "verdict": "anomaly",
+         "summary": "评分 {value:.1f} 低于 4.0 警戒线"}
+      ]
+    },
+    {
+      "id": "staff",
+      "title": "人员出勤检查",
+      "dimension": "staff",
+      "tool": "query_staff",
+      "args": {"store_id": "{{store_id}}", "date": "{{date}}"},
+      "when": "always",
+      "rules": [
+        {"metric": "attendance_ratio", "op": "lt", "threshold": 0.9,
+         "verdict": "anomaly",
+         "summary": "出勤率 {value:.0%} 低于 90%,存在人手不足风险"}
+      ]
+    },
+    {
+      "id": "external",
+      "title": "外部因素检查(天气/市场)",
+      "dimension": "external",
+      "tool": "query_external_factors",
+      "args": {"store_id": "{{store_id}}", "date": "{{date}}"},
+      "when": "always",
+      "rules": [
+        {"metric": "analysis.severe_weather", "op": "eq", "threshold": true,
+         "verdict": "anomaly",
+         "summary": "当日天气「{weather.value}」,是客流下降的重要外部因素"},
+        {"metric": "analysis.has_competitor_promo", "op": "eq", "threshold": true,
+         "verdict": "info",
+         "summary": "竞对市场活动「{market_events.0.name}」,可能分流客流"}
+      ]
+    },
+    {
+      "id": "case",
+      "title": "历史类似案例检索",
+      "dimension": "case",
+      "tool": "search_cases",
+      "args": {"store_id": "{{store_id}}", "symptom": "{{symptom}}"},
+      "when": "any_anomaly",
+      "rules": [
+        {"metric": "match_count", "op": "ge", "threshold": 1,
+         "verdict": "info",
+         "summary": "检索到 {value} 个历史类似案例,可参考其处置经验"}
+      ]
+    }
+  ]
+}

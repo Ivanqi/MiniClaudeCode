@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "A店": {
+    "date": "2026-09-01",
+    "baseline_revenue": 99000.0,
+    "baseline_traffic": 1800.0,
+    "total_delta": -17820.0,
+    "traffic_contrib": -25832.55,
+    "ticket_contrib": 8012.55,
+    "traffic_share": 1.449638,
+    "ticket_share": -0.449638
+  },
+  "B店": {
+    "date": "2026-09-01",
+    "baseline_revenue": 88000.0,
+    "baseline_traffic": 1600.0,
+    "total_delta": -8800.0,
+    "traffic_contrib": 15228.0,
+    "ticket_contrib": -24028.0,
+    "traffic_share": -1.730454,
+    "ticket_share": 2.730454
+  },
+  "C店": {
+    "date": "2026-09-01",
+    "baseline_revenue": 120000.0,
+    "baseline_traffic": 2000.0,
+    "total_delta": 2400.0,
+    "traffic_contrib": 2400.0,
+    "ticket_contrib": 0.0,
+    "traffic_share": 1.0,
+    "ticket_share": 0.0
+  }
+}

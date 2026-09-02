@@ -1,0 +1,229 @@
+{
+  "store_id": "C店",
+  "days": [
+    {
+      "date": "2026-08-25",
+      "revenue": 24000.0,
+      "traffic": 400,
+      "orders": 400,
+      "periods": {
+        "早市": {
+          "revenue": 1200.0,
+          "traffic": 20
+        },
+        "午市": {
+          "revenue": 10800.0,
+          "traffic": 180
+        },
+        "下午茶": {
+          "revenue": 2400.0,
+          "traffic": 40
+        },
+        "晚市": {
+          "revenue": 8400.0,
+          "traffic": 140
+        },
+        "夜宵": {
+          "revenue": 1200.0,
+          "traffic": 20
+        }
+      }
+    },
+    {
+      "date": "2026-08-26",
+      "revenue": 24000.0,
+      "traffic": 400,
+      "orders": 400,
+      "periods": {
+        "早市": {
+          "revenue": 1200.0,
+          "traffic": 20
+        },
+        "午市": {
+          "revenue": 10800.0,
+          "traffic": 180
+        },
+        "下午茶": {
+          "revenue": 2400.0,
+          "traffic": 40
+        },
+        "晚市": {
+          "revenue": 8400.0,
+          "traffic": 140
+        },
+        "夜宵": {
+          "revenue": 1200.0,
+          "traffic": 20
+        }
+      }
+    },
+    {
+      "date": "2026-08-27",
+      "revenue": 24000.0,
+      "traffic": 400,
+      "orders": 400,
+      "periods": {
+        "早市": {
+          "revenue": 1200.0,
+          "traffic": 20
+        },
+        "午市": {
+          "revenue": 10800.0,
+          "traffic": 180
+        },
+        "下午茶": {
+          "revenue": 2400.0,
+          "traffic": 40
+        },
+        "晚市": {
+          "revenue": 8400.0,
+          "traffic": 140
+        },
+        "夜宵": {
+          "revenue": 1200.0,
+          "traffic": 20
+        }
+      }
+    },
+    {
+      "date": "2026-08-28",
+      "revenue": 24000.0,
+      "traffic": 400,
+      "orders": 400,
+      "periods": {
+        "早市": {
+          "revenue": 1200.0,
+          "traffic": 20
+        },
+        "午市": {
+          "revenue": 10800.0,
+          "traffic": 180
+        },
+        "下午茶": {
+          "revenue": 2400.0,
+          "traffic": 40
+        },
+        "晚市": {
+          "revenue": 8400.0,
+          "traffic": 140
+        },
+        "夜宵": {
+          "revenue": 1200.0,
+          "traffic": 20
+        }
+      }
+    },
+    {
+      "date": "2026-08-29",
+      "revenue": 24000.0,
+      "traffic": 400,
+      "orders": 400,
+      "periods": {
+        "早市": {
+          "revenue": 1200.0,
+          "traffic": 20
+        },
+        "午市": {
+          "revenue": 10800.0,
+          "traffic": 180
+        },
+        "下午茶": {
+          "revenue": 2400.0,
+          "traffic": 40
+        },
+        "晚市": {
+          "revenue": 8400.0,
+          "traffic": 140
+        },
+        "夜宵": {
+          "revenue": 1200.0,
+          "traffic": 20
+        }
+      }
+    },
+    {
+      "date": "2026-08-30",
+      "revenue": 24000.0,
+      "traffic": 400,
+      "orders": 400,
+      "periods": {
+        "早市": {
+          "revenue": 1200.0,
+          "traffic": 20
+        },
+        "午市": {
+          "revenue": 10800.0,
+          "traffic": 180
+        },
+        "下午茶": {
+          "revenue": 2400.0,
+          "traffic": 40
+        },
+        "晚市": {
+          "revenue": 8400.0,
+          "traffic": 140
+        },
+        "夜宵": {
+          "revenue": 1200.0,
+          "traffic": 20
+        }
+      }
+    },
+    {
+      "date": "2026-08-31",
+      "revenue": 24000.0,
+      "traffic": 400,
+      "orders": 400,
+      "periods": {
+        "早市": {
+          "revenue": 1200.0,
+          "traffic": 20
+        },
+        "午市": {
+          "revenue": 10800.0,
+          "traffic": 180
+        },
+        "下午茶": {
+          "revenue": 2400.0,
+          "traffic": 40
+        },
+        "晚市": {
+          "revenue": 8400.0,
+          "traffic": 140
+        },
+        "夜宵": {
+          "revenue": 1200.0,
+          "traffic": 20
+        }
+      }
+    },
+    {
+      "date": "2026-09-01",
+      "revenue": 24480.0,
+      "traffic": 408,
+      "orders": 408,
+      "periods": {
+        "早市": {
+          "revenue": 1224.0,
+          "traffic": 20
+        },
+        "午市": {
+          "revenue": 11016.0,
+          "traffic": 184
+        },
+        "下午茶": {
+          "revenue": 2448.0,
+          "traffic": 41
+        },
+        "晚市": {
+          "revenue": 8568.0,
+          "traffic": 143
+        },
+        "夜宵": {
+          "revenue": 1224.0,
+          "traffic": 20
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "description": "离线评测场景集:每场景断言预期主因与必须覆盖的证据步骤。评测运行时基于本文件,不依赖网络。",
+  "scenarios": [
+    {
+      "id": "scenario_a_traffic",
+      "store_id": "A店",
+      "date": "2026-09-01",
+      "expected_main_factor": "traffic",
+      "expected_dims": ["traffic", "periods", "channels", "external"],
+      "evidence_tags": ["decompose", "traffic", "ticket", "periods", "channels",
+                        "dish", "promotion", "rating", "staff", "external", "case"],
+      "max_steps": 12
+    },
+    {
+      "id": "scenario_b_ticket",
+      "store_id": "B店",
+      "date": "2026-09-01",
+      "expected_main_factor": "ticket",
+      "expected_dims": ["ticket", "dish", "promotion"],
+      "evidence_tags": ["decompose", "traffic", "ticket", "periods", "channels",
+                        "dish", "promotion", "rating", "staff", "external", "case"],
+      "max_steps": 12
+    },
+    {
+      "id": "scenario_c_normal",
+      "store_id": "C店",
+      "date": "2026-09-01",
+      "expected_main_factor": "none",
+      "expected_dims": [],
+      "evidence_tags": ["decompose", "traffic", "ticket", "periods", "channels",
+                        "dish", "promotion", "rating", "staff", "external"],
+      "max_steps": 12
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "records": [
+    {
+      "store_id": "A店",
+      "date": "2026-09-01",
+      "value": "暴雨",
+      "severity": "severe",
+      "detail": "全天暴雨,橙色预警,出行受阻"
+    }
+  ]
+}

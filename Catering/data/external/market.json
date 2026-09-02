@@ -1,0 +1,12 @@
+{
+  "events": [
+    {
+      "store_id": "A店",
+      "date": "2026-09-01",
+      "type": "competitor_promotion",
+      "name": "竞对『蜀香居』新店开业全场7折",
+      "distance_km": 0.5,
+      "detail": "距 A店 500 米,9/1 开业大促,全场 7 折"
+    }
+  ]
+}
