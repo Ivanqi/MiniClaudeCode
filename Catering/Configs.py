@@ -12,12 +12,13 @@ class CateringConfigs:
 
     # ── 目录 ──
     CATERING_DIR = Path(__file__).resolve().parent
+    CATERING_DIR_PARENT = CATERING_DIR.resolve().parent
     DATA_DIR = CATERING_DIR / "data"
     DIAGNOSIS_CHAIN_PATH = DATA_DIR / "diagnosis_chain.json"
     EVAL_SCENARIOS_PATH = DATA_DIR / "eval_scenarios.json"
     CASES_DIR = DATA_DIR / "cases"          # 知识库:已归档诊断案例
     # 运行产物目录:状态、证据、报告(与 src 各 System 的 .tasks 等模式一致,可注入)
-    RUN_DIR = Path(os.getenv("CATERING_RUN_DIR") or (Path.cwd() / ".catering"))
+    RUN_DIR = Path(os.getenv("CATERING_RUN_DIR") or (CATERING_DIR_PARENT / ".catering"))
 
     # ── 口径 ──
     BASELINE_DAYS = 7        # 基准 = 告警日前 7 日均值(周同比口径)

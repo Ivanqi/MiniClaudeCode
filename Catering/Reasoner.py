@@ -103,6 +103,7 @@ class Reasoner:
         valid_refs = {f.step_id for f in findings}
         digest = self.build_digest(alert, findings, matched_cases,
                                    main_factor, main_factor_contrib)
+                                   
         if self.client is None:
             conclusions, recommendations = self.template(
                 alert, findings, matched_cases, main_factor,
@@ -113,6 +114,7 @@ class Reasoner:
                              "attempts": 0, "llm_error": None}}
 
         messages = [user_message(digest)]
+  
         attempts = 0
         last_error: str | None = None
         while attempts <= CateringConfigs.REASONER_MAX_RETRIES:
@@ -130,6 +132,7 @@ class Reasoner:
                               Terminal.RED)
                 break
             parsed, err = self._parse_output(response.content)
+
             if parsed is not None and not OutputValidator.validate_reasoner_output(
                     parsed, valid_refs):
                 return self._finish_llm(parsed, attempts)

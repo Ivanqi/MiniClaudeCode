@@ -75,14 +75,33 @@ class CateringTools:
     def run_analyze_revenue_decomposition(self, store_id: str,
                                           date: str) -> dict:
         """营业额贡献度拆解(数据分析服务):客流 vs 客单价,精确无残差。"""
+        '''
+        day：指定门店在指定日期的单日数据字典（如 {"revenue": 120000, "traffic": 2000, "ticket": 60.0}）。
+        base：基期数据列表（通常是过去 N 天，如 7 天，每天的数据字典）。
+        missing：缺失字段或错误信息列表（如数据缺失、天数不足等）。
+        '''
         day, base, missing = self._day_with_baseline(store_id, date)
         if missing or not day:
             return {"store_id": store_id, "date": date,
                     "missing_fields": missing}
+        '''
+        对基期列表 base 中的营收和客流分别求和并除以天数，得到平均营收和平均客流，作为比较基准。
+        base 非空且每个元素包含 "revenue" 和 "traffic" 字段
+        '''
         base_revenue = sum(d["revenue"] for d in base) / len(base)
         base_traffic = sum(d["traffic"] for d in base) / len(base)
+        '''
+        传入当期营收、客流和基期平均营收、客流，返回包含 total_delta、traffic_contrib、ticket_contrib 等字段的字典
+        '''
         contrib = lmdi_decompose(day["revenue"], day["traffic"],
                                  base_revenue, base_traffic)
+        '''
+        baseline：基期的平均营收、平均客流、平均客单价（营收/客流）。
+        current：当天的实际营收、客流、客单价（直接从 day 中获取）。
+        pct_change：当天营收相对基期平均营收的百分比变化。
+        contrib：LMDI 分解的详细结果。
+        missing_fields 设为空列表（因为已经检查过数据完整）
+        '''
         return {
             "store_id": store_id, "date": date,
             "baseline": {"revenue": round(base_revenue, 2),

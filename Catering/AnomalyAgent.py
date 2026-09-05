@@ -299,6 +299,7 @@ class AnomalyAgent:
                           allow_writes=self.tools.enable_writes)
         system = EXPLORE_SYSTEM + self._data_environment()
         messages = [user_message(system), user_message(prompt)]
+
         steps = denials = consecutive = 0
         while steps < max_steps:
             tools, handlers = registry.assemble()
@@ -316,6 +317,7 @@ class AnomalyAgent:
                 return {"final_text": response.content, "steps": steps,
                         "denials": denials, "truncated": False}
             messages.append(assistant_message(response))
+
             for call in response.tool_calls:
                 ok, why = guard.can_call(call.name, call.arguments)
                 if not ok:
@@ -325,6 +327,7 @@ class AnomalyAgent:
                     continue
                 consecutive = 0
                 result = self._dispatch(handlers, call.name, call.arguments)
+
                 text = json.dumps(result, ensure_ascii=False)
                 if len(text) > CateringConfigs.AGENTIC_OUTPUT_CHARS:
                     text = (text[:CateringConfigs.AGENTIC_OUTPUT_CHARS]

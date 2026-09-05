@@ -55,7 +55,7 @@ class FakeClient:
 
 def build_agent(client=None, scope=None, data_dir: Path | None = None,
                 interactive=False, enable_writes=None):
-    run_dir = Path(tempfile.mkdtemp())
+    run_dir = Path(CateringConfigs.CATERING_DIR_PARENT / '.catering/test')
     agent = AnomalyAgent.build(client=client, data_dir=data_dir or DATA_DIR,
                                run_dir=run_dir, scope=scope,
                                interactive=interactive,
