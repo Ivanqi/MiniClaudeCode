@@ -132,25 +132,65 @@ def top_negative(rows: list[dict], delta_field: str,
 
 
 # ── 渠道 / 时段 / 菜品结构 ──
-
+'''
+将堂食（POS）和外卖两个渠道的当日数据和基期数据合并，计算每个渠道的
+    当期营收、客流量
+    基期平均营收、客流量
+    同比变化百分比
+    当前份额和基期份额
+    绝对变化量（delta）
+    并找出下降最严重的渠道（若整体营收下降）
+'''
 def channel_breakdown(pos_cur: dict, pos_base: list[dict],
                       takeout_cur: dict, takeout_base: list[dict]) -> dict:
     """堂食/外卖渠道拆分:各渠道营收与客流同比 + 降幅集中度。"""
+    '''
+    初始化结果列表
+        存储每个渠道的分析结果字典。
+    '''
     channels = []
+
+    '''
+    遍历两个渠道
+        CHANNEL_NAMES = ["堂食", "外卖"]
+        分别绑定对应的当日数据和基期数据。
+    '''
     for name, cur, base in ((CHANNEL_NAMES[0], pos_cur, pos_base),
                             (CHANNEL_NAMES[1], takeout_cur, takeout_base)):
+        '''
+        对每个渠道，获取营收和客流的三元组
+            metric_triplet 返回 {"value": 当期值, "baseline": 基期均值, "pct_change": 同比百分比}
+            若某字段缺失或基期非正，pct_change 为 None。
+        '''
         rev = metric_triplet(base, cur, "revenue")
         tr = metric_triplet(base, cur, "traffic")
+        '''
+        组装渠道字典
+            暂时不含份额和 delta，后续计算
+        '''
         channels.append({
             "name": name,
             "revenue": rev["value"], "baseline_revenue": rev["baseline"],
             "revenue_pct_change": rev["pct_change"],
             "traffic": tr["value"], "traffic_pct_change": tr["pct_change"],
         })
+
+    '''
+    计算总营收（当期和基期）
+        分别累加两个渠道的当期营收和基期营收。
+        若某个渠道缺失数据，则相应求和可能不完整，但本例假设数据完整。
+    '''
     total_rev = sum(c["revenue"] for c in channels
                     if c["revenue"] is not None)
     total_base = sum(c["baseline_revenue"] for c in channels
                      if c["baseline_revenue"] is not None)
+
+    '''
+    为每个渠道计算份额和绝对变化
+        share：当前营收占总营收的比例。
+        baseline_share：基期营收占总基期营收的比例。
+        delta：当期营收减去基期营收（正数表示增长，负数表示下降）。
+    '''
     for c in channels:
         c["share"] = (c["revenue"] / total_rev
                       if c["revenue"] is not None and total_rev else None)
@@ -160,26 +200,57 @@ def channel_breakdown(pos_cur: dict, pos_base: list[dict],
         c["delta"] = (c["revenue"] - c["baseline_revenue"]
                       if c["revenue"] is not None
                       and c["baseline_revenue"] is not None else None)
+
+    '''
+    计算总营收变化量
+        若两项均有效，则为总变化；否则为 None
+    '''
     total_delta = (total_rev - total_base
                    if total_rev is not None and total_base is not None else None)
 
+    '''
+    调用 top_negative 找出降幅最大的渠道
+        top_negative 在 total_delta < 0 时，找出 delta 为负且绝对值最大的渠道，并计算其下降额占总下降额的比例。
+
+        将总变化量也加入分析结果。
+    '''
     analysis = top_negative(channels, "delta", total_delta,
                             name_key="top_negative_channel")
     analysis["total_delta"] = total_delta
     return {"channels": channels, "analysis": analysis}
 
-
+'''
+将堂食（POS）和外卖两个渠道的当天各时段数据合并，计算每个时段的客流、营收及其同比变化，并找出客流下降最严重的时段
+'''
 def period_breakdown(pos_cur: dict, pos_base: list[dict],
                      takeout_cur: dict, takeout_base: list[dict]) -> dict:
     """时段拆分:全店(堂食+外卖)各时段客流/营收同比 + 降幅集中度。"""
+    # 初始化结果列表
     periods = []
+    # 遍历所有时段
+    # PERIOD_NAMES 为预定义的时段列表，如 ["早市", "午市", "下午茶", "晚市", "夜宵"]
     for name in PERIOD_NAMES:
+        '''
+        计算当日总客流和总营收（堂食+外卖）
+            从堂食和外卖的当日数据中提取该时段的客流/营收，若缺失则用 0 替代
+            两者相加得到该时段的总客流和总营收
+        '''
         cur_traffic = (pos_cur.get("periods", {}).get(name, {}).get("traffic")
                        or 0) + (takeout_cur.get("periods", {}).get(name, {})
                                 .get("traffic") or 0)
         cur_revenue = (pos_cur.get("periods", {}).get(name, {}).get("revenue")
                        or 0) + (takeout_cur.get("periods", {}).get(name, {})
                                 .get("revenue") or 0)
+        '''
+        计算基期平均客流和营收
+            pos_base 和 takeout_base 是基期（如过去7天）的每日数据列表，长度相同。
+
+            通过 zip 同时遍历，对每一天分别取出堂食和外卖该时段的客流，相加，得到一个包含 N 个值的列表（N = 基期天数）。
+
+            _mean 函数计算该列表的非 None 平均值（若全部为 None 则返回 None）。
+
+            营收的计算方式完全相同。
+        '''
         base_traffic = _mean([
             (p.get("periods", {}).get(name, {}).get("traffic") or 0)
             + (t.get("periods", {}).get(name, {}).get("traffic") or 0)
@@ -188,6 +259,13 @@ def period_breakdown(pos_cur: dict, pos_base: list[dict],
             (p.get("periods", {}).get(name, {}).get("revenue") or 0)
             + (t.get("periods", {}).get(name, {}).get("revenue") or 0)
             for p, t in zip(pos_base, takeout_base)])
+
+        '''
+        组装该时段的结果字典并加入 periods
+            存储当期值、同比变化百分比（调用 pct_change，若基期为 None 或 ≤0 则返回 None）。
+
+            计算客流绝对变化量 traffic_delta，用于后续找出下降最大的时段。
+        '''
         periods.append({
             "name": name, "traffic": cur_traffic,
             "traffic_pct_change": pct_change(cur_traffic, base_traffic),
@@ -196,11 +274,24 @@ def period_breakdown(pos_cur: dict, pos_base: list[dict],
             "traffic_delta": (cur_traffic - base_traffic
                               if base_traffic is not None else None),
         })
+
+    '''
+    计算总客流变化量
+        将所有时段的 traffic_delta 相加，得到全天总客流变化量（可为正或负）。
+    '''
     total_delta = sum(p["traffic_delta"] for p in periods
                       if p["traffic_delta"] is not None)
+
+    '''
+    调用 top_negative 找出客流下降最严重的时段
+        top_negative 函数在 total_delta < 0 时，找出 traffic_delta 最小的时段（即下降最多），并计算其占总下降额的比例（正数）。
+
+        将 total_traffic_delta 一并放入分析结果
+    '''
     analysis = top_negative(periods, "traffic_delta", total_delta,
                             name_key="top_negative_period")
     analysis["total_traffic_delta"] = total_delta
+    # 包含所有时段明细和降幅集中度分析
     return {"periods": periods, "analysis": analysis}
 
 """

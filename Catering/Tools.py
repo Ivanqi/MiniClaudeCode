@@ -57,14 +57,33 @@ class CateringTools:
             return {"error": str(e), "missing_fields": [str(e)]}
 
     # ── 只读工具处理器 ──
-
+    '''
+    run_query_metrics 是一个通用经营指标查询方法
+    它允许调用方一次性获取多个指标（如营业额、客流、客单价等）的当期值、基准均值、同比变化百分比，同时优雅地处理数据缺失情况。
+    '''
     def run_query_metrics(self, store_id: str, date: str,
                           metrics: list) -> dict:
         """通用经营指标查询(门店经营数据库)。"""
+        '''
+        METRIC_FIELDS 是一个预定义的元组，包含允许查询的指标名称（如 "revenue", "traffic", "ticket" 等）。
+
+        如果 metrics 中包含不在该元组中的字段，则直接抛出 ValueError，避免后续错误。
+        '''
         unknown = [m for m in metrics if m not in METRIC_FIELDS]
         if unknown:
             raise ValueError(f"未知指标: {unknown},可选: {list(METRIC_FIELDS)}")
+        '''
+        调用内部方法 _day_with_baseline，返回：
+            day：当天的数据字典（如 {"revenue": 120000, "traffic": 2000}）。
+            base：基期数据列表（通常是过去 N 天的记录）。
+            missing：缺失信息列表（如数据缺失、天数不足等）。
+        '''
         day, base, missing = self._day_with_baseline(store_id, date)
+        '''
+        为每个指标生成三元组
+            如果数据完整，则对 metrics 中的每个指标，调用 metric_triplet(base, day, m) 生成包含 value（当期）、baseline（基准均值）、pct_change（同比变化百分比）的字典。
+            如果数据不完整，则将 result 设为空字典（后续仍会返回 missing_fields）。
+        '''
         if not missing and day:
             result = {m: metric_triplet(base, day, m) for m in metrics}
         else:
@@ -166,16 +185,41 @@ class CateringTools:
                 "pos_base": pos_base, "takeout_base": takeout_base,
                 "missing_fields": []}
 
+    '''
+    实现了按时段（早市、午市等）拆分全店（堂食+外卖）客流与营收，并计算同比变化及降幅集中度的功能
+    '''
     def run_query_period_breakdown(self, store_id: str, date: str) -> dict:
         """时段分布(堂食 POS + 外卖平台合并)。"""
+        '''
+        获取渠道数据
+            调用 _channel_days，返回包含 pos_cur, takeout_cur, pos_base, takeout_base 以及 missing_fields 的字典。
+
+            若数据缺失，则 missing_fields 非空。
+        '''
         data = self._channel_days(store_id, date)
+        '''
+        处理数据缺失情况
+            如果存在缺失字段，直接返回包含门店ID、日期和缺失信息的字典，不进行计算。
+        '''
         if data.get("missing_fields"):
             return {"store_id": store_id, "date": date, **data}
+
+        '''
+        调用 period_breakdown 进行分析
+            传入四个数据源，得到时段分析结果（包含 periods 和 analysis）
+        '''
         result = period_breakdown(data["pos_cur"], data["pos_base"],
                                   data["takeout_cur"], data["takeout_base"])
+        '''
+        组装返回结果
+            合并门店ID、日期和 period_breakdown 返回的字典，并确保 missing_fields 为空（因为数据已检查）
+        '''
         return {"store_id": store_id, "date": date, **result,
                 "missing_fields": []}
 
+    '''
+    实现了堂食与外卖两个渠道的营收/客流同比分析，并自动识别降幅最大的渠道（降幅集中度）
+    '''
     def run_query_channel_breakdown(self, store_id: str, date: str) -> dict:
         """堂食/外卖渠道拆分与降幅集中度。"""
         data = self._channel_days(store_id, date)
@@ -186,16 +230,43 @@ class CateringTools:
         return {"store_id": store_id, "date": date, **result,
                 "missing_fields": []}
 
+    '''
+    run_query_dish_structure 方法用于查询门店在特定日期的菜品结构数据
+    计算每个品类的当期和基期份额、客单价，并调用 mix_price_decomposition 进行加权均价变化的拆解（结构效应 vs 价格效应）
+    '''
     def run_query_dish_structure(self, store_id: str, date: str) -> dict:
         """菜品结构(门店经营数据库):品类份额/客单变化 + mix/price 拆解。"""
+        '''
+        获取当天数据和基期数据
+            day：当天的门店数据字典（包含 dishes 列表等）。
+            base：基期数据列表（通常为过去 N 天，每天包含 dishes 列表）。
+            missing：缺失信息列表。
+        '''
         day, base, missing = self._day_with_baseline(store_id, date)
         if missing or not day:
             return {"store_id": store_id, "date": date,
                     "missing_fields": missing}
+
+        '''
+        构建基期品类数据字典
+            遍历基期每一天的菜品列表，将每个品类对应的所有记录（包含 share, ticket 等字段）存入一个以品类名为键的列表。
+
+            这样 base_by_cat 就聚集了基期中每个品类的所有历史数据点。
+        '''
         base_by_cat: dict[str, list] = {}
         for b in base:
             for d in b.get("dishes") or []:
                 base_by_cat.setdefault(d["category"], []).append(d)
+
+        '''
+        处理当天菜品，计算基期平均值并构建明细列表
+            对当天出现的每个品类：
+                从 base_by_cat 中取出该品类在基期中的所有记录；若基期没有该品类，则用当前记录自身作为唯一历史（此时 base_share = share, base_ticket = ticket，相当于无变化）。
+
+                计算基期平均份额 (base_share) 和平均客单价 (base_ticket)。
+
+                构建一个包含当期/基期份额、客单价、营收、订单量以及份额变化的字典，存入 categories 列表。
+        '''
         categories = []
         for d in day.get("dishes") or []:
             hist = base_by_cat.get(d["category"]) or [d]
@@ -208,9 +279,23 @@ class CateringTools:
                 "revenue": d["revenue"], "orders": d["orders"],
                 "revenue_share_change": d["share"] - base_share,
             })
+
+        '''
+        生成基期汇总表（用于 LMDI 拆解）
+            从 categories 中提取每个品类的基期平均份额和基期平均客单价，构造为 mix_price_decomposition 所需的基期数据格式。
+        '''
         base_agg = [{"category": c["category"], "share": c["baseline_share"],
                      "ticket": c["baseline_ticket"]} for c in categories]
+
+        '''
+        调用拆解函数
+            传入当天的菜品列表（包含每个品类的当前份额和客单价）和刚构造的基期汇总表，计算加权均价变化的结构效应和价格效应。
+        '''
         analysis = mix_price_decomposition(day.get("dishes") or [], base_agg)
+        
+        '''
+        合并门店ID、日期、品类明细、拆解分析结果，并确保 missing_fields 为空
+        '''
         return {"store_id": store_id, "date": date, "categories": categories,
                 "analysis": analysis, "missing_fields": []}
 

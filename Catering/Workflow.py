@@ -123,18 +123,41 @@ class DiagnosticEngine:
         self.run_dir = run_dir or CateringConfigs.RUN_DIR
         self.tasks = tasks   # 可选的 src.TaskSystem(默认不镜像)
 
+    '''
+    整体流程
+    for 诊断链里的每个步骤:
+        ① when 条件不满足? → 标记 excluded,跳过
+        ② 把 {{store_id}}/{{date}}/{{symptom}} 模板绑定成真实参数
+        ③ 调用工具取数 → 原始结果落盘 evidence/{step_id}.json(审计)
+        ④ 数据缺失/报错? → 标记 no_data("数据缺失,无法判断"),继续下一步(不炸链)
+        ⑤ 逐条规则判定 → 命中则生成发现(Finding),没命中 → "未见明显异常"
+        ⑥ decompose 步骤额外计算主因(客流/客单价)
+        ⑦ 异常发现的关键词累积进 symptom,供最后案例检索步骤使用
+        最后: 汇总 ran/excluded/no_data/errors → 返回四元组
+
+    '''
     def run(self, chain: dict, alert) -> tuple[list[StepResult], list[Finding],
                                               list[Evidence], dict]:
         """执行整条链;返回 (步骤结果, 发现, 证据, 完整性)。"""
+        '''
+        ① 初始化
+            例：A店告警进来后 bind = {"store_id": "A店", "date": "2026-09-01"}，三个列表为空，anomaly_seen=False。
+        '''
         bind = {"store_id": alert.store_id, "date": alert.date}
-        step_results: list[StepResult] = []
-        findings: list[Finding] = []
-        evidence: list[Evidence] = []
-        anomaly_seen = False
-        culprit: str | None = None
-        symptom_parts: list[str] = []
+        step_results: list[StepResult] = [] # 三个收集器
+        findings: list[Finding] = [] # 三个收集器
+        evidence: list[Evidence] = [] # 三个收集器
+        anomaly_seen = False # 是否已出现过 anomaly(供 when 分支判断)
+        culprit: str | None = None # 主因,由 decompose 步骤算出
+        symptom_parts: list[str] = []  # 累积异常发现的关键词,最后拼成案例检索的输入
 
         for step in chain["steps"]:
+            '''
+            ② when 分支判断
+                when 只支持白名单语义（always / any_anomaly / culprit_is:X 等），决定这一步要不要做。
+                大多数步骤 when: "always" → 直接放行；
+                C店跑链时没有任何 anomaly，case 步骤 when: "any_anomaly" 返回 False → 被排除，记录 status="excluded", message="分支条件不满足: any_anomaly"——这就是"没有异常就不去翻历史案例"的链分支。
+            '''
             if not eval_when(step["when"], anomaly_seen, culprit):
                 step_results.append(StepResult(
                     step_id=step["id"], status="excluded",
@@ -142,12 +165,38 @@ class DiagnosticEngine:
                 self._finish_task(self._start_task(step, alert))
                 continue
 
-            task_id = self._start_task(step, alert)
+            '''
+            ③ 参数绑定 + 工具取数
+                _resolve_arg：模板替换。{{store_id}} → "A店"；特殊的 {{symptom}} → 把前面累积的 symptom_parts 拼成字符串（只有 case 步骤用）；
+
+                _start_task：如果 CLI 加了 --tasks，这一步会在 src.TaskSystem 任务看板上创建"诊断步骤: 客流检查"并认领（owner=diagnostic-engine），让诊断过程在主代理任务体系里可观测。
+
+                例（traffic 步骤）：绑定出 {"store_id": "A店", "date": "2026-09-01", "metrics": ["traffic"]}，工具返回：
+
+                {"traffic": {"value": 1350, "baseline": 1800.0, "pct_change": -25.0}}
+
+            '''
+            # 注入 TaskSystem 时在任务看板建任务
+            task_id = self._start_task(step, alert) 
+            # {{store_id}} → "A店"
             args = {k: self._resolve_arg(v, bind, symptom_parts)
                     for k, v in step.get("args", {}).items()}
+            # 真正查数据
             result = self.tools.execute(step["tool"], args)
+            '''
+            ④ 证据落盘
+                把工具原始结果写到 run_dir/evidence/traffic.json。
+                这是审计链的一环：报告里的结论可以回溯到落盘的原始数据；写失败也不阻断诊断（_persist_evidence 内 try/except 返回 None）。
+            '''
             ev_path = self._persist_evidence(step["id"], result)
 
+            '''
+            ⑤ 数据缺失分支
+                这是"缺失就明说，绝不编造"的落点：工具返回带 missing_fields（如"基准日部分缺失"）或 error 时，这一步标记 no_data，发现结论固定为 "该维度数据缺失,无法判断"。
+
+                例：测试里把 POS 数据源抽掉后，periods/channels 步骤就走到这里，报告 completeness.no_data_steps 里出现这两个步骤，但诊断链照常跑完。
+
+            '''
             missing = result.get("missing_fields") or []
             if result.get("error") or missing:
                 message = (f"数据缺失: {result.get('error') or ', '.join(missing)}")
@@ -158,20 +207,42 @@ class DiagnosticEngine:
                     step_id=step["id"], dimension=step["dimension"],
                     verdict="no_data", summary=NO_DATA_MESSAGE,
                     evidence_refs=[step["id"]]))
-                evidence.append(Evidence(
+                evidence.append(Evidence( # 证据照记,只是数据是缺失标记
                     step_id=step["id"], tool=step["tool"], params=args,
                     data=result, source=TOOL_SOURCES.get(step["tool"], "store_db"),
                     path=ev_path))
                 self._finish_task(task_id)
-                continue
+                continue  # 继续下一步,不炸链
 
+            '''
+            ⑥ 规则判定
+                把该步骤在 JSON 里声明的所有规则（metric 点路径 + op 白名单 + threshold）对工具结果逐一求值，收集命中的规则。
+
+                例（traffic 步骤）：规则 {"metric": "traffic.pct_change", "op": "le", "threshold": -10.0, "verdict": "anomaly"}，取到 -25.0 ≤ -10.0 → 命中，rule_hits = [命中1条]，anomaly=True，同时 anomaly_seen 置 True（后面 case 步骤靠它分支）。
+            '''
             rule_hits = [hit for rule in step["rules"]
                          if (hit := eval_rule(rule, result)) is not None]
             anomaly = any(h["verdict"] == "anomaly" for h in rule_hits)
             anomaly_seen = anomaly_seen or anomaly
+
+            '''
+            ⑦ decompose 步骤特判：主因计算
+                只有 decompose 这一步会调用 determine_main_factor：营收下降时，取贡献额最负的因子。
+
+                例：A店拆解结果 total_delta=-17820（营收下降）， traffic_contrib=-25832.55（客流下拉）、ticket_contrib=+8012.55（客单价反而回补）→ min 取最负的 → culprit = "traffic"。B店则得到 culprit = "ticket"（-24028）。C店 total_delta ≥ 0 → "none"。
+            '''
             if step["id"] == "decompose":
                 culprit, _ = determine_main_factor(result)
 
+            '''
+            ⑧ 汇总该步骤的结论与状态
+                注意 verdict 和 status 的微妙区别：命中 info 规则（如"竞对存在促销"）时，verdict="info"（供报告展示参考信息），但 status="normal"（不升级为异常）。
+
+                例：
+                    external 步骤两条规则都命中 → summary = "当日天气「暴雨」,是客流下降的重要外部因素;竞对市场活动「竞对『蜀香居』新店开业全场7折」,可能分流客流"；
+
+                    ticket 步骤（客单价 +9.3%）一条没中 → summary = "客单价检查: 未见明显异常"。
+            '''
             if rule_hits:
                 summary = ";".join(h["summary"] for h in rule_hits)
                 verdict = "anomaly" if anomaly else "info"
@@ -180,6 +251,17 @@ class DiagnosticEngine:
                 verdict = "normal"
             status = "anomaly" if anomaly else "normal"
 
+            '''
+            ⑨ 沉淀 StepResult / Finding / Evidence
+                三个收集器各司其职：
+
+                    StepResult：运行期状态（报告不直接用它）；
+                    
+                    Finding：一个维度的"发现"——结论句 + analysis/contrib 关键数值快照（_metrics_snapshot，235-241 行）+ 引用自己的 step_id；
+                    
+                    Evidence：一条取证记录——哪个工具、什么参数、返回什么、数据源类别（TOOL_SOURCES 映射，如 query_metrics → store_db）、完整数据落盘在哪。
+                例：traffic 步骤的 Finding 为 dimension="traffic", verdict="anomaly", summary="客流同比下降 -25.0%,超过阈值 -10%", metrics={}，Evidence 的 source="store_db"。
+            '''
             step_results.append(StepResult(
                 step_id=step["id"], status=status, data=result,
                 rule_hits=rule_hits, message=summary))
@@ -193,18 +275,35 @@ class DiagnosticEngine:
                 data=result, source=TOOL_SOURCES.get(step["tool"], "store_db"),
                 path=ev_path))
 
+            '''
+            ⑩ 症状累积
+                只有异常/参考级发现才累积关键词。到 case 步骤时，_resolve_arg 把 symptom_parts 拼成检索输入。
+
+                例：A店跑完前 10 步后，symptom_parts 大致为 ["dimension:decompose", "营业额同比下降 -18.0%...", "dimension:traffic", "客流同比下降 -25.0%...", ..., "dimension:external", "当日天气「暴雨」..."] → search_cases 用这串文本匹配，命中 CASE-2026-0622-A（暴雨案例，得分 7.0）。
+
+                dimension:traffic 这种 token 是故意放的，让案例匹配能对上 main_factor 字段。
+            '''
             if verdict in ("anomaly", "info"):
                 symptom_parts.append(f"dimension:{step['dimension']}")
                 symptom_parts.append(summary)
+            # 任务看板上把本步骤标 completed
             self._finish_task(task_id)
 
+        '''
+        ⑪ 步骤收尾
+            四元组交回 AnomalyAgent.run_alert：completeness 直接进报告（运营能看到"哪几步没数据、哪几步被分支跳过"），findings 喂给 Reasoner 生成结论，evidence 构成报告的"证据链"章节。
+        '''
         completeness = {
+            # 执行过的步骤(含 no_data,不含 excluded)
             "ran_steps": [s.step_id for s in step_results
                           if s.status != "excluded"],
+            # 分支排除的步骤
             "excluded_steps": [s.step_id for s in step_results
                                if s.status == "excluded"],
+            # 数据缺失的步骤
             "no_data_steps": [s.step_id for s in step_results
                               if s.status == "no_data"],
+            # 各步骤的错误信息
             "errors": [s.message for s in step_results if s.errors],
         }
         return step_results, findings, evidence, completeness
