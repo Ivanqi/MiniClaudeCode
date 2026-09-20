@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "projects": {
+    "PJ-A-001": {
+      "static_vuln": 11.5,
+      "env_config": 17.0,
+      "deploy_integrity": 0.0,
+      "risk_score": 28.5,
+      "critical_count": 1,
+      "level": "D",
+      "main_risk": "env_config",
+      "main_risk_score": 17.0,
+      "expected_vuln_ids": [
+        "CA-JAVA-SQLI-001",
+        "CA-JAVA-CRYPTO-002",
+        "CA-JAVA-LOG-003"
+      ]
+    },
+    "PJ-B-002": {
+      "static_vuln": 12.5,
+      "env_config": 0.5,
+      "deploy_integrity": 0.0,
+      "risk_score": 13.0,
+      "critical_count": 0,
+      "level": "C",
+      "main_risk": "static_vuln",
+      "main_risk_score": 12.5,
+      "expected_vuln_ids": [
+        "CA-CS-CRYPTO-001",
+        "CA-CS-DESER-002",
+        "CA-CS-EXPOSE-003"
+      ]
+    },
+    "PJ-C-003": {
+      "static_vuln": 7.6,
+      "env_config": 1.9,
+      "deploy_integrity": 15.0,
+      "risk_score": 24.5,
+      "critical_count": 1,
+      "level": "C",
+      "main_risk": "deploy_integrity",
+      "main_risk_score": 15.0,
+      "expected_vuln_ids": [
+        "CA-PHP-XSS-001",
+        "CA-PHP-INCLUDE-002"
+      ]
+    },
+    "PJ-D-004": {
+      "static_vuln": 0,
+      "env_config": 0,
+      "deploy_integrity": 0.0,
+      "risk_score": 0.0,
+      "critical_count": 0,
+      "level": "A",
+      "main_risk": "none",
+      "main_risk_score": null,
+      "expected_vuln_ids": []
+    }
+  }
+}

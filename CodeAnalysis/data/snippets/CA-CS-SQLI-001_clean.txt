@@ -1,0 +1,1 @@
+var cmd = new SqlCommand("SELECT * FROM Orders WHERE Cust = @id", conn);

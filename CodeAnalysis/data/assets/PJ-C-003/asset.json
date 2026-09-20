@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "project_id": "PJ-C-003",
+  "name": "二级单位质量管理系统",
+  "owner": "质量检验中心",
+  "deploy_scope": "full",
+  "required_modules": [],
+  "version": "2.1.0",
+  "ingest_date": "2026-09-18",
+  "assets": [
+    {
+      "asset_id": "PJ-C-003",
+      "module": "quality-web",
+      "language": "php",
+      "local_dir": "src/web",
+      "artifact": "artifacts/quality-web-2.1.0.zip",
+      "version": "2.1.0",
+      "base_image": "php:8.2-fpm-alpine"
+    }
+  ]
+}

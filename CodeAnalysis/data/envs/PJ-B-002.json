@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "project_id": "PJ-B-002",
+  "env": "prod",
+  "values": {
+    "tls": {
+      "min_version": "1.0"
+    }
+  },
+  "checks": [
+    {
+      "check_id": "CA-ENV-TLS-001",
+      "name": "允许 TLS 1.0 协议",
+      "severity": "low",
+      "likelihood": 0.5,
+      "metric": "tls.min_version",
+      "target": "1.0",
+      "fix": "禁用 TLS 1.0/1.1,最低 TLS 1.2"
+    }
+  ]
+}

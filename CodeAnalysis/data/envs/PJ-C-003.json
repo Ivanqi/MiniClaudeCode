@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "project_id": "PJ-C-003",
+  "env": "prod",
+  "values": {
+    "debug": {
+      "phpinfo_endpoint": true
+    },
+    "session": {
+      "cookie_secure": false
+    }
+  },
+  "checks": [
+    {
+      "check_id": "CA-ENV-EXPOSE-001",
+      "name": "生产暴露 phpinfo/调试端点",
+      "severity": "medium",
+      "likelihood": 0.7,
+      "metric": "debug.phpinfo_endpoint",
+      "target": true,
+      "fix": "移除 phpinfo/调试端点"
+    },
+    {
+      "check_id": "CA-ENV-COOKIE-002",
+      "name": "Session Cookie 未加固",
+      "severity": "low",
+      "likelihood": 0.5,
+      "metric": "session.cookie_secure",
+      "target": false,
+      "fix": "开启 cookie_secure 与 httponly"
+    }
+  ]
+}

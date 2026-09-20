@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "project_id": "PJ-D-004",
+  "name": "数据分析工具集",
+  "owner": "数据中心",
+  "deploy_scope": "full",
+  "required_modules": [],
+  "version": "0.9.1",
+  "ingest_date": "2026-09-18",
+  "assets": [
+    {
+      "asset_id": "PJ-D-004",
+      "module": "pipeline",
+      "language": "python",
+      "local_dir": "src/pipeline",
+      "artifact": "artifacts/pipeline-0.9.1.whl",
+      "version": "0.9.1",
+      "base_image": "python:3.11-slim"
+    }
+  ]
+}

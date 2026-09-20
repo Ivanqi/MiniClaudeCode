@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "language": "python",
+  "extensions": [
+    ".py"
+  ],
+  "rules": [
+    {
+      "rule_id": "CA-PY-EVAL-001",
+      "name": "eval/exec 执行外部输入",
+      "severity": "critical",
+      "likelihood": 0.9,
+      "pattern": "\\b(?:eval|exec)\\s*\\(\\s*(?:request\\.(?:args|form|values|GET|POST|json)\\.?(?:get)?\\s*\\(|input\\s*\\()",
+      "flags": "i",
+      "not_match": "",
+      "cwes": [
+        "CWE-95"
+      ],
+      "owasp": "A03:2021",
+      "iso27001": "A.8.28",
+      "evidence_hint": "用户输入进入 eval/exec",
+      "fix": "改用 ast.literal_eval 或解析器"
+    },
+    {
+      "rule_id": "CA-PY-CMD-002",
+      "name": "subprocess shell=True 命令注入",
+      "severity": "critical",
+      "likelihood": 0.9,
+      "pattern": "\\bsubprocess\\s*\\.\\s*(?:Popen|run|call|check_output)\\s*\\([^)\\n]{0,120}shell\\s*=\\s*True",
+      "flags": "i",
+      "not_match": "",
+      "cwes": [
+        "CWE-78"
+      ],
+      "owasp": "A03:2021",
+      "iso27001": "A.8.28",
+      "evidence_hint": "shell=True 拼接外部输入构造命令",
+      "fix": "参数列表调用并移除 shell=True"
+    },
+    {
+      "rule_id": "CA-PY-YAML-003",
+      "name": "yaml.load 未指定 SafeLoader",
+      "severity": "high",
+      "likelihood": 0.6,
+      "pattern": "\\byaml\\.load\\s*\\((?![^)\\n]{0,80}(?:Safe|CSafe)Loader)[^)\\n]{0,80}\\)",
+      "flags": "",
+      "not_match": "",
+      "cwes": [
+        "CWE-502"
+      ],
+      "owasp": "A08:2021",
+      "iso27001": "A.8.26",
+      "evidence_hint": "yaml.load 未使用安全加载器",
+      "fix": "改用 yaml.safe_load 或显式 SafeLoader"
+    },
+    {
+      "rule_id": "CA-PY-SECRET-004",
+      "name": "源码明文硬编码密钥",
+      "severity": "low",
+      "likelihood": 0.5,
+      "pattern": "\\b(?:SECRET_KEY|API_KEY|PASSWORD|TOKEN)\\s*=\\s*[\\\"'][^\\\"'\\s]{8,}[\\\"']",
+      "flags": "i",
+      "not_match": "os\\.environ|getenv",
+      "cwes": [
+        "CWE-798"
+      ],
+      "owasp": "A07:2021",
+      "iso27001": "A.8.1",
+      "evidence_hint": "密钥/令牌以明文硬编码在源码中",
+      "fix": "改用环境变量或密钥管理服务读取"
+    }
+  ]
+}

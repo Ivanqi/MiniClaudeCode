@@ -166,11 +166,12 @@ CLI 中直接输入问题回车发送，`q` / `exit` / 空行退出。
 python -m unittest discover -s tests -v
 ```
 
-65 个用例全通过：
+141 个用例全通过：
 
 - **test_core.py（31 个）**：cron 表达式校验与匹配（`*/5`、范围、列表、dom/dow 或语义）、任务生命周期与依赖阻塞、DeepSeek 消息/工具格式构造与往返、错误分类、压缩预算与配对保护、工具注册表合并（内置 + MCP）、worktree 名称校验、文件工具与路径沙箱
 - **test_agent_loop.py（2 个）**：用 `FakeClient` 离线跑通完整主循环——验证工具确实执行、tool 消息与 tool_calls 配对回传、system prompt 注入、`length` 截断升级 max_tokens 后成功收尾
-- **test_catering.py（32 个）**：LMDI 贡献度拆解精确性/零基期健壮性、八类数据源健康与自洽校验、告警扫描、ToolGuard 拒绝与放行、工作流端到端（客流型/客单价型/正常对照三店）、单步失败不炸链、Reasoner 成功/重试/模板降级、报告篡改检测、探索模式工具调用/权限拦截/步数熔断、状态机持久化、诊断链校验、评测场景正负向
+- **test_catering.py（39 个）**：LMDI 贡献度拆解精确性/零基期健壮性、八类数据源健康与自洽校验、告警扫描、ToolGuard 拒绝与放行、工作流端到端（客流型/客单价型/正常对照三店）、单步失败不炸链、Reasoner 成功/重试/模板降级、报告篡改检测、探索模式工具调用/权限拦截/步数熔断、状态机持久化、诊断链校验、评测场景正负向
+- **test_codeanalysis.py（69 个）**：风险评估模型（权重/等级边界/critical 硬门槛/主风险判定）、16 条扫描规则片段精度（命中植入样本不误报净化对照）、4 语言扫描与期望漏洞清单一致、对照组零命中、运行环境审查、部署门禁/完整性拦截/部分部署/独立复核、SHA-256 校验和、分析链校验（op/when 白名单）、报告结构校验与篡改检测、4 场景端到端（环境配置/静态漏洞/部署完整性/无风险）、状态机持久化、Reasoner 成功/重试/模板降级、探索模式与 MCP 晚绑定、任务看板镜像、定时扫描调度、评测场景正负向、研究交付物生成、fixtures 幂等
 
 ## Catering 业务包
 
@@ -183,6 +184,19 @@ python -m Catering.main --agentic "A店客流为什么降?"  # 探索模式：LL
 ```
 
 架构、数据契约、八类数据源映射与使用说明见 `Catering/readme.md`。
+
+## CodeAnalysis 业务包
+
+`CodeAnalysis/` 是第二个业务 Agent：**代码资产全生命周期安全管控**。代码入库后沿确定性安全分析链（资产盘点 → 多语言静态扫描 → 安全自评估 → 运行环境审查 → 一键部署 → 部署验证 → 整改案例检索）逐层取证判定，输出安全等级（A~E，参照 ISO/IEC 27001 + OWASP Top 10）与可回溯的整改建议，不靠 LLM 猜漏洞：
+
+```bash
+python -m CodeAnalysis.main --eval                        # 离线评测（4 场景，无需 API Key）
+python -m CodeAnalysis.main --project PJ-A-001 --auto     # 工作流分析 + LLM 归纳
+python -m CodeAnalysis.main --research all                # 研究报告/部署技术规范交付物
+python -m CodeAnalysis.main --schedule "30 8 * * *"       # 定时自动扫描（复用 CronScheduler）
+```
+
+架构、风险模型、多语言规则引擎、部署验证（可用性/真实性/完整性）与使用说明见 `CodeAnalysis/readme.md`。
 
 ## 项目结构
 
@@ -227,8 +241,26 @@ MiniClaudeCode/
 │   ├── Scheduler.py           #   定时自动诊断（复用 CronScheduler）
 │   ├── gen_fixtures.py        #   样本数据生成器（确定性）
 │   └── main.py                #   CLI：--eval/--store/--agentic/--schedule/--tasks
-├── tests/                     # 65 个离线测试用例（核心 33 + Catering 32）
-├── skills/                    # 技能目录（agent-builder / code-review / mcp-builder / pdf）
+├── CodeAnalysis/              # 代码安全业务包：代码资产全生命周期安全管控 Agent（详见 CodeAnalysis/readme.md）
+│   ├── Configs.py             #   风险模型权重/等级阈值/目录配置
+│   ├── Models.py              #   资产/发现/证据/部署记录/分析报告/案例结构
+│   ├── DataHub.py             #   五类数据源抽象（资产库/规则库/环境库/云平台/知识库）
+│   ├── Scanner.py             #   多语言静态扫描引擎（Java/C#/PHP/Python 规则驱动）
+│   ├── Metrics.py             #   风险评估模型（权重×可能性/等级/硬门槛/主风险）
+│   ├── Deployer.py            #   一键部署模块（门禁/完整性/真实性/可用性/复核）
+│   ├── Tools.py               #   分析工具集（9 只读 + 2 受控写）
+│   ├── Workflow.py            #   安全分析链引擎 + 状态机
+│   ├── Guardrails.py          #   规则/输出校验/工具权限
+│   ├── Reasoner.py            #   LLM 归纳 + 模板降级
+│   ├── ResearchReports.py     #   研究报告/部署技术规范生成（量化指标交付物）
+│   ├── Evaluator.py           #   离线评测体系
+│   ├── CodeAnalysisAgent.py   #   双模式编排（工作流/探索，ToolRegistry+MCP 集成）
+│   ├── Scheduler.py           #   定时自动扫描（复用 CronScheduler）
+│   ├── gen_fixtures.py        #   样本数据生成器（确定性，自校验）
+│   ├── data/                  #   分析链/规则库/资产/环境/云注册表/案例/期望值/报告
+│   └── main.py                #   CLI：--eval/--project/--agentic/--research/--schedule/--tasks
+├── tests/                     # 离线测试用例（核心 33 + Catering 32 + CodeAnalysis）
+├── skills/                    # 技能目录（agent-builder / code-review / mcp-builder / pdf / catering-ops / code-analysis-ops）
 ├── .env.example               # 环境变量模板
 └── requirements.txt           # httpx / python-dotenv / pyyaml
 ```

@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "project_id": "PJ-A-001",
+  "name": "科技管理系统",
+  "owner": "科技管理部",
+  "deploy_scope": "full",
+  "required_modules": [],
+  "version": "1.4.0",
+  "ingest_date": "2026-09-18",
+  "assets": [
+    {
+      "asset_id": "PJ-A-001",
+      "module": "core",
+      "language": "java",
+      "local_dir": "src/core",
+      "artifact": "artifacts/core-1.4.0.jar",
+      "version": "1.4.0",
+      "base_image": "openjdk:17.0.9-slim"
+    }
+  ]
+}

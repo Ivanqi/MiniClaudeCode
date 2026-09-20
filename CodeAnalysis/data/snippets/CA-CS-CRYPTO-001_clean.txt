@@ -1,0 +1,1 @@
+var h = SHA256.Create();

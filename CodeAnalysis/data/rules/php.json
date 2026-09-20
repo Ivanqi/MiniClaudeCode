@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "language": "php",
+  "extensions": [
+    ".php"
+  ],
+  "rules": [
+    {
+      "rule_id": "CA-PHP-SQLI-001",
+      "name": "mysqli SQL 字符串拼接",
+      "severity": "high",
+      "likelihood": 0.8,
+      "pattern": "[\\\"']\\s*(?:SELECT|INSERT|UPDATE|DELETE)\\b[^\\\"'\\n]{0,300}[\\\"']\\s*\\.\\s*\\$_\\w+",
+      "flags": "i",
+      "not_match": "",
+      "cwes": [
+        "CWE-89"
+      ],
+      "owasp": "A03:2021",
+      "iso27001": "A.8.28",
+      "evidence_hint": "字符串拼接构造 SQL 语句",
+      "fix": "改用 PDO/mysqli 预处理语句"
+    },
+    {
+      "rule_id": "CA-PHP-XSS-001",
+      "name": "反射型 XSS(直接输出用户输入)",
+      "severity": "high",
+      "likelihood": 0.8,
+      "pattern": "\\b(?:echo|print)\\b[^\\n;]{0,160}?\\$_(?:GET|POST|REQUEST)\\b",
+      "flags": "i",
+      "not_match": "htmlspecialchars|htmlentities|esc_html|esc_attr|urlencode",
+      "cwes": [
+        "CWE-79"
+      ],
+      "owasp": "A03:2021",
+      "iso27001": "A.8.28",
+      "evidence_hint": "直接输出未编码的用户输入",
+      "fix": "输出前用 htmlspecialchars 编码"
+    },
+    {
+      "rule_id": "CA-PHP-INCLUDE-002",
+      "name": "动态 include 用户输入",
+      "severity": "medium",
+      "likelihood": 0.5,
+      "pattern": "\\b(?:include|require)(?:_once)?\\s*\\(?\\s*\\$_(?:GET|POST|REQUEST|COOKIE)\\b",
+      "flags": "i",
+      "not_match": "",
+      "cwes": [
+        "CWE-98"
+      ],
+      "owasp": "A03:2021",
+      "iso27001": "A.8.28",
+      "evidence_hint": "include 路径来自用户输入",
+      "fix": "使用固定视图路径白名单"
+    },
+    {
+      "rule_id": "CA-PHP-CODE-003",
+      "name": "eval/assert 代码执行",
+      "severity": "critical",
+      "likelihood": 0.9,
+      "pattern": "\\b(?:eval|assert)\\s*\\(\\s*\\$_(?:GET|POST|REQUEST|COOKIE)|\\bcall_user_func\\s*\\(\\s*\\$_(?:GET|POST|REQUEST)|\\bcreate_function\\s*\\(",
+      "flags": "i",
+      "not_match": "",
+      "cwes": [
+        "CWE-95"
+      ],
+      "owasp": "A03:2021",
+      "iso27001": "A.8.28",
+      "evidence_hint": "用户输入进入代码执行函数",
+      "fix": "删除动态代码执行,改为固定逻辑"
+    },
+    {
+      "rule_id": "CA-PHP-DESER-004",
+      "name": "unserialize 反序列化用户输入",
+      "severity": "low",
+      "likelihood": 0.3,
+      "pattern": "\\bunserialize\\s*\\(\\s*\\$_(?:GET|POST|REQUEST|COOKIE)",
+      "flags": "i",
+      "not_match": "json_decode",
+      "cwes": [
+        "CWE-502"
+      ],
+      "owasp": "A08:2021",
+      "iso27001": "A.8.26",
+      "evidence_hint": "用户输入直接进入 unserialize",
+      "fix": "改用 json_decode 并限制 allowed_classes"
+    }
+  ]
+}

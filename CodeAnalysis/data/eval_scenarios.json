@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "description": "离线评测场景集:4 个样本系统覆盖四种主风险(环境配置/静态漏洞/部署完整性/无风险),期望值由 gen_fixtures.py 独立重实现写入 expected_assessments.json。",
+  "scenarios": [
+    {
+      "id": "scenario_a_env",
+      "project_id": "PJ-A-001",
+      "name": "科技管理系统(环境配置型,全量部署)",
+      "expected_main_risk": "env_config",
+      "expected_level": "D",
+      "expected_deploy_status": "deployed",
+      "expected_failed_checks": [],
+      "expected_excluded_steps": [],
+      "evidence_tags": ["inventory", "static_scan", "assess", "env_review", "deploy", "verify", "case"],
+      "max_steps": 7
+    },
+    {
+      "id": "scenario_b_static",
+      "project_id": "PJ-B-002",
+      "name": "工程技术一体化系统(静态漏洞型,部分部署)",
+      "expected_main_risk": "static_vuln",
+      "expected_level": "C",
+      "expected_deploy_status": "deployed",
+      "expected_failed_checks": [],
+      "expected_excluded_steps": [],
+      "expected_partial": true,
+      "expected_modules_deployed": 2,
+      "evidence_tags": ["inventory", "static_scan", "assess", "env_review", "deploy", "verify", "case"],
+      "max_steps": 7
+    },
+    {
+      "id": "scenario_c_deploy",
+      "project_id": "PJ-C-003",
+      "name": "二级单位质量管理系统(部署完整性型,制品被篡改)",
+      "expected_main_risk": "deploy_integrity",
+      "expected_level": "C",
+      "expected_deploy_status": "blocked",
+      "expected_failed_checks": ["integrity"],
+      "expected_excluded_steps": ["verify"],
+      "evidence_tags": ["inventory", "static_scan", "assess", "env_review", "deploy", "case"],
+      "max_steps": 7
+    },
+    {
+      "id": "scenario_d_none",
+      "project_id": "PJ-D-004",
+      "name": "数据分析工具集(对照组,零命中)",
+      "expected_main_risk": "none",
+      "expected_level": "A",
+      "expected_deploy_status": "deployed",
+      "expected_failed_checks": [],
+      "expected_excluded_steps": ["case"],
+      "evidence_tags": ["inventory", "static_scan", "assess", "env_review", "deploy", "verify"],
+      "max_steps": 7
+    }
+  ]
+}

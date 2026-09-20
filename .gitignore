@@ -3,6 +3,7 @@ __pycache__
 .tasks
 .worktrees
 .catering
+.codeanalysis
 src/__pycache__
 .vscode
 .env

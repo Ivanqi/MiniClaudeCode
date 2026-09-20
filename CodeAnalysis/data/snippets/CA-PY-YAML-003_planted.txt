@@ -1,0 +1,1 @@
+cfg = yaml.load(open("app.yaml").read())

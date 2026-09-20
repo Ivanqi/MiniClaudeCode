@@ -1,0 +1,1 @@
+result = eval(request.args.get("expr"))

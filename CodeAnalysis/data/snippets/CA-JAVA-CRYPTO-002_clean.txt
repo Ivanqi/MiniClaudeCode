@@ -1,0 +1,1 @@
+return Cipher.getInstance("AES/GCM/NoPadding");

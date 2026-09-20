@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "platform": "公司云平台(模拟)",
+  "registry_version": "2026.09",
+  "entries": [
+    {
+      "asset_id": "PJ-A-001",
+      "module": "core",
+      "version": "1.4.0",
+      "artifact": "artifacts/core-1.4.0.jar",
+      "sha256": "775127f6652e045feb33da042e2a96582d5512aee903f8c347a1973d32f10250",
+      "signature": "sig:CN=tech-mgmt:v1.4.0:775127f6652e045f",
+      "cn": "tech-mgmt",
+      "base_image": "openjdk:17.0.9-slim"
+    },
+    {
+      "asset_id": "PJ-B-002",
+      "module": "api",
+      "version": "3.2.0",
+      "artifact": "artifacts/api-3.2.0.dll",
+      "sha256": "52c20e9cf3c0269693a3be122031cbf14b80603a6cacb5110534d2b8e3e63ff3",
+      "signature": "sig:CN=eng-integration:v3.2.0:52c20e9cf3c02696",
+      "cn": "eng-integration",
+      "base_image": "mcr.microsoft.com/dotnet/aspnet:8.0"
+    },
+    {
+      "asset_id": "PJ-B-002",
+      "module": "web",
+      "version": "3.2.0",
+      "artifact": "artifacts/web-3.2.0.zip",
+      "sha256": "a567d53baa942450d97cd393c8c575aa0dd51d5403d1be2997a1fb5193d52be7",
+      "signature": "sig:CN=eng-integration:v3.2.0:a567d53baa942450",
+      "cn": "eng-integration",
+      "base_image": "mcr.microsoft.com/dotnet/aspnet:8.0"
+    },
+    {
+      "asset_id": "PJ-C-003",
+      "module": "quality-web",
+      "version": "2.1.0",
+      "artifact": "artifacts/quality-web-2.1.0.zip",
+      "sha256": "6119527dfa22ff81670d694c5d6b708983480afae70cd2136ddd79ac56ffb715",
+      "signature": "sig:CN=quality-mgmt:v2.1.0:6119527dfa22ff81",
+      "cn": "quality-mgmt",
+      "base_image": "php:8.2-fpm-alpine"
+    },
+    {
+      "asset_id": "PJ-D-004",
+      "module": "pipeline",
+      "version": "0.9.1",
+      "artifact": "artifacts/pipeline-0.9.1.whl",
+      "sha256": "2a338acf7058220c1b7e83a4a77ca013445af20ce6180b01d872496002fcef26",
+      "signature": "sig:CN=data-tools:v0.9.1:2a338acf7058220c",
+      "cn": "data-tools",
+      "base_image": "python:3.11-slim"
+    }
+  ]
+}
