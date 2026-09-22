@@ -8,6 +8,7 @@ from src.Configs import Configs
 from src.HookSystem import HOOK_SYSTEM, HookSystem
 from src.LlmClient import (assistant_message, make_function_tool, tool_message,
                            user_message)
+from src.Terminal import Terminal
 
 SUB_ROUND_LIMIT = 30
 
@@ -21,9 +22,11 @@ class SubagentSystem:
         "Do not spawn more agents."
     )
 
-    def __init__(self, client, hooks: HookSystem = HOOK_SYSTEM,
+    def __init__(self, client, router=None,
+                 hooks: HookSystem = HOOK_SYSTEM,
                  basic: BasicOper = BASIC_OPER):
         self.client = client
+        self.router = router  # None 表示不路由,直接用 self.client(向后兼容)
         self.hooks = hooks
         self.basic = basic
 
@@ -71,10 +74,29 @@ class SubagentSystem:
         messages = [user_message(description)]
         tools = self.sub_tools()
         handlers = self.sub_handlers()
+        escalated = False  # 子代理局部升级标志:解析失败后切换 API
         for _ in range(SUB_ROUND_LIMIT):
-            response = self.client.create(
+            if self.router is not None:
+                decision = self.router.route(messages, caller="subagent",
+                                             flags={"escalated": escalated})
+                client, model, max_tokens = self.router.apply(
+                    decision, Configs.SUBAGENT_MAX_TOKENS)
+            else:
+                client, model, max_tokens = self.client, None, Configs.SUBAGENT_MAX_TOKENS
+            response = client.create(
                 messages, system=self.SUB_SYSTEM, tools=tools,
-                max_tokens=Configs.SUBAGENT_MAX_TOKENS)
+                max_tokens=max_tokens, model=model)
+            if response.has_parse_error:
+                # 丢弃坏调用;本地模型直接升级,不追加坏消息
+                response.tool_calls = [c for c in response.tool_calls
+                                       if not c.parse_error]
+                Terminal.info("parse-error", "subagent dropped malformed call",
+                              Terminal.RED)
+                if self.router is not None and decision.local:
+                    escalated = True
+                    Terminal.info("escalate", "subagent parse error → API",
+                                  Terminal.RED)
+                    continue
             messages.append(assistant_message(response))
             if not response.has_tool_calls:
                 break

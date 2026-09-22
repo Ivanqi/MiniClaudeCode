@@ -30,6 +30,28 @@ class Configs:
     MODEL = os.getenv("MODEL_ID") or "deepseek-chat"
     FALLBACK_MODEL = os.getenv("FALLBACK_MODEL_ID")
 
+    # ── 模型路由(混合路由:本地小模型 / API) ──
+    # auto=全量路由;api-only=全走 API(逃生舱);local-only=全走本地(仅测试);shadow=只记录不生效(调参)
+    ROUTER_MODE = os.getenv("ROUTER_MODE", "auto")
+    API_MODEL_ID = os.getenv("API_MODEL_ID")  # 默认取客户端模型
+    LOCAL_MODEL_ID = os.getenv("LOCAL_MODEL_ID")  # 未配置则退化为纯 API 行为
+    LOCAL_BASE_URL = os.getenv("LOCAL_BASE_URL")  # 例: http://<gpu-box>:8000/v1
+    LOCAL_API_KEY = os.getenv("LOCAL_API_KEY", "local")  # vLLM 通常不需要鉴权,占位即可
+    LOCAL_LLM_TIMEOUT = float(os.getenv("LOCAL_LLM_TIMEOUT", "300"))  # 本地推理慢,超时放宽
+    SIMPLE_TASK_MAX_CHARS = 200  # 简单任务判定:用户消息长度上限
+    VERY_SHORT_CHARS = 40  # 极短消息(问候/闲聊)视作纯问答
+    LOCAL_MAX_CONTEXT_CHARS = 15000  # 本地小模型能承受的上下文上限(字符)
+    LOCAL_MAX_TOKENS = 1024  # 本地调用的 max_tokens 上限:失败要便宜
+    HEALTH_CHECK_TTL = 30  # 本地服务健康检查缓存秒数
+    HEALTH_CHECK_TIMEOUT = 3.0  # 健康探测超时秒数
+    MAX_PARSE_ERRORS_BEFORE_ESCALATE = 2  # 工具参数解析失败 N 次后升级 API
+    MAX_IDENTICAL_TOOL_CALLS = 3  # 同一工具+参数连续调用 N 次视为空转
+    MAX_TOOL_ERRORS_BEFORE_ESCALATE = 2  # 工具执行报错 N 次后升级 API
+
+    # ── Phase 3:轨迹收集(路由日志 → 微调训练数据) ──
+    COLLECT_TRAINING_DATA = os.getenv("COLLECT_TRAINING_DATA", "0") == "1"
+    TRAINING_DATA_DIR = WORKDIR / ".training_data"
+
     # ── Token 预算 ──
     # deepseek-chat 单次输出上限为 8192:默认 4096,遇到截断时升级到 8192。
     DEFAULT_MAX_TOKENS = 4096

@@ -15,8 +15,9 @@ from src.Terminal import Terminal
 class ContextCompact:
     """上下文压缩器:只依赖消息列表与 LLM 客户端,无其他耦合。"""
 
-    def __init__(self, tool_results_dir: Path | None = None):
+    def __init__(self, tool_results_dir: Path | None = None, router=None):
         self.tool_results_dir = tool_results_dir or Configs.TOOL_RESULTS_DIR
+        self.router = router  # None 表示直接用传入的 client(向后兼容)
 
     # ── 消息结构判断 ──
 
@@ -181,8 +182,15 @@ class ContextCompact:
         prompt = ("Summarize this coding-agent conversation so work can continue. "
                   "Preserve current goal, key findings, changed files, remaining work, "
                   "and user constraints.\n\n" + conversation)
-        response = client.create(
-            [user_message(prompt)], max_tokens=Configs.SUMMARY_MAX_TOKENS)
+        if self.router is not None:
+            # 摘要默认走本地小模型(单次调用、无工具、输出短)
+            decision = self.router.route([user_message(prompt)], caller="summary")
+            llm_client, model, max_tokens = self.router.apply(
+                decision, Configs.SUMMARY_MAX_TOKENS)
+        else:
+            llm_client, model, max_tokens = client, None, Configs.SUMMARY_MAX_TOKENS
+        response = llm_client.create(
+            [user_message(prompt)], max_tokens=max_tokens, model=model)
         return response.content or "(empty summary)"
 
     def compact_history(self, messages: list, client) -> list:

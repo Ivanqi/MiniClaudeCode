@@ -19,6 +19,7 @@ from src.LlmClient import (assistant_message, make_function_tool, tool_message,
 from src.MessageBus import BUS, MessageBus
 from src.ProtocolSystem import PROTOCOL, ProtocolState, ProtocolSystem
 from src.TaskSystem import TASK_SYSTEM, TaskSystem
+from src.Terminal import Terminal
 
 
 class TeammateSystem:
@@ -27,13 +28,14 @@ class TeammateSystem:
     INNER_ROUND_LIMIT = 10
     MESSAGE_WINDOW = 20
 
-    def __init__(self, client,
+    def __init__(self, client, router=None,
                  bus: MessageBus = BUS,
                  protocol: ProtocolSystem = PROTOCOL,
                  tasks: TaskSystem = TASK_SYSTEM,
                  teammates: ActiveTeammates = ACTIVE_TEAMMATES,
                  basic: BasicOper = BASIC_OPER):
         self.client = client
+        self.router = router  # None 表示不路由,直接用 self.client(向后兼容)
         self.bus = bus
         self.protocol = protocol
         self.tasks = tasks
@@ -321,11 +323,24 @@ class TeammateSystem:
                     若 waiting_plan 被设置（即刚提交了计划），则 忽略后续的工具调用（因为模型可能在同一回复中请求多个工具，但提交计划后应立即暂停，等待审批），并立即跳出内层循环。
                 '''
                 try:
-                    response = self.client.create(
+                    if self.router is not None:
+                        # 长时自治队友默认走 API(caller=teammate 恒返回 api)
+                        decision = self.router.route(
+                            messages[-self.MESSAGE_WINDOW:], caller="teammate")
+                        client, model, max_tokens = self.router.apply(
+                            decision, Configs.TEAMMATE_MAX_TOKENS)
+                    else:
+                        client, model, max_tokens = self.client, None, Configs.TEAMMATE_MAX_TOKENS
+                    response = client.create(
                         messages[-self.MESSAGE_WINDOW:], system=system,
-                        tools=sub_tools, max_tokens=Configs.TEAMMATE_MAX_TOKENS)
+                        tools=sub_tools, max_tokens=max_tokens, model=model)
                 except Exception:
                     break
+                if response.has_parse_error:
+                    response.tool_calls = [c for c in response.tool_calls
+                                           if not c.parse_error]
+                    Terminal.info("parse-error",
+                                  "teammate dropped malformed call", Terminal.RED)
                 messages.append(assistant_message(response))
                 if not response.has_tool_calls:
                     break

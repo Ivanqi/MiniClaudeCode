@@ -159,6 +159,29 @@ CLI 中直接输入问题回车发送，`q` / `exit` / 空行退出。
 | `MODEL_ID` | | `deepseek-chat` | 主模型（也可用 `deepseek-reasoner`） |
 | `FALLBACK_MODEL_ID` | | 空 | 备用模型，连续 overload 错误后自动切换 |
 | `LLM_TIMEOUT` | | `120` | 请求超时（秒） |
+| `ROUTER_MODE` | | `auto` | 混合路由开关：`auto` / `api-only`（逃生舱）/ `local-only`（测试）/ `shadow`（只记录不生效） |
+| `API_MODEL_ID` | | 取 `MODEL_ID` | API 侧模型 |
+| `LOCAL_MODEL_ID` | | 空 | 本地小模型名（vLLM 服务名），配置后启用本地路由 |
+| `LOCAL_BASE_URL` | | 空 | 本地 vLLM OpenAI 兼容地址，如 `http://<gpu-box>:8000/v1` |
+| `LOCAL_API_KEY` | | `local` | 本地服务鉴权（vLLM 通常不需要） |
+| `LOCAL_LLM_TIMEOUT` | | `300` | 本地推理超时（秒），本地生成慢需放宽 |
+| `COLLECT_TRAINING_DATA` | | `0` | Phase 3 轨迹收集开关：`1` 开启，落盘 `.training_data/*.jsonl` |
+
+**混合路由**（`ModelRouter`）：不配置 `LOCAL_*` 时退化为纯 API 行为。配置后按调用点静态路由（摘要、探索子代理 → 本地；长时队友 → API），主循环走保守 AND 规则——只有"明确简单"的查询（短消息、信息查询意图、无动作/复杂标记、上下文不超过阈值）才走本地小模型；纯问答会剥离工具集，其余本地调用使用**只读精简工具集**（`read_file`/`glob`/`list_tasks`/`get_task`/`list_crons`/`load_skill`，无 bash/写操作/MCP，Phase 4）。本地模型的质量信号（工具参数解析失败、空回复、length 截断、工具报错、同参数空转）触发**整 turn 升级 API**，升级后的历史不携带失败消息。
+
+**Catering 探索模式**（`Catering.AnomalyAgent.explore`）同样接入路由（`caller=catering`）：默认 API，只有纯概念问答（如"什么是 ROI?"）走本地且不带工具；含门店/客流/营业额/数据等业务分析词的问题一律 API，避免小模型误路由浪费时间。
+
+**轨迹收集**（Phase 3，`TrajectoryLogger`）：开启后每个 turn 落一条 ShareGPT 格式 JSONL（`{"messages": [...], "metadata": {"outcome": ...}}`），按 outcome 分型——`local-ok`（小模型正样本）、`escalated`（困难样本，带升级原因）、`api`（强模型示范，SFT 模仿目标）、`error`（诊断）。数据在 24GB 机器上用 Llama-Factory/Unsloth 做 QLoRA 微调。
+
+**本地小模型**（4GB 显存开发机）：`local_model/server.py` 是本地 OpenAI 兼容服务 shim（llama-cpp-python + Qwen 模板，解析 `<tool_call>` 块为标准 tool_calls，坏 JSON 原样上报以触发升级阶梯）。启动方式：
+
+```bash
+conda create -n llama python=3.10 llama-cpp-python -c conda-forge
+conda run -n llama python local_model/server.py \
+    --model /root/models/qwen2.5-3b-instruct-q4_k_m.gguf --port 8080
+```
+
+配合 `LOCAL_BASE_URL=http://127.0.0.1:8080/v1`、`LOCAL_MODEL_ID=local-3b` 接入。3B 级只用于管线验证；正式效果以 24GB 机上微调的 14B+（vLLM 服务，接口一致）为准。
 
 ## 测试
 

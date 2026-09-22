@@ -11,4 +11,6 @@ old_code
 .scheduled_tasks.json
 .editorconfig
 skills
+.training_data/
+local_model/__pycache__/
 需求/

@@ -26,15 +26,25 @@ class ToolCall:
     id: str
     name: str
     arguments: dict = field(default_factory=dict)
+    parse_error: bool = False      # arguments 不是合法 JSON 时为 True(小模型常见失败)
+    raw_arguments: str = ""        # 原始参数字符串,供日志与排查
 
     @classmethod
     def from_api(cls, raw: dict) -> "ToolCall":
-        """从 API 返回的 tool_calls 条目构造。"""
+        """从 API 返回的 tool_calls 条目构造。
+
+        参数解析失败不再静默降级为 {},而是打上 parse_error 标记,
+        由上层(AgentLoop/SubagentSystem)决定丢弃该调用或升级模型。
+        """
         function = raw.get("function") or {}
+        raw_arguments = function.get("arguments") or ""
         try:
-            arguments = json.loads(function.get("arguments") or "{}")
+            arguments = json.loads(raw_arguments) if raw_arguments else {}
         except json.JSONDecodeError:
-            arguments = {}
+            return cls(id=raw.get("id") or "",
+                       name=function.get("name") or "",
+                       arguments={}, parse_error=True,
+                       raw_arguments=raw_arguments)
         return cls(id=raw.get("id") or "",
                    name=function.get("name") or "",
                    arguments=arguments)
@@ -50,6 +60,11 @@ class LlmResponse:
     @property
     def has_tool_calls(self) -> bool:
         return bool(self.tool_calls)
+
+    @property
+    def has_parse_error(self) -> bool:
+        """是否存在工具参数解析失败的调用(小模型质量信号)。"""
+        return any(call.parse_error for call in self.tool_calls)
 
 
 # ── 消息与工具定义构造器 ──
@@ -128,6 +143,11 @@ class DeepSeekClient:
         self.model = model or self.DEFAULT_MODEL
         self.fallback_model = fallback_model
         self._http = httpx.Client(timeout=timeout)  # 复用连接池
+
+    @property
+    def base_url(self) -> str:
+        """暴露 base_url,供健康检查等外部探测使用。"""
+        return self._base_url
 
     @classmethod
     def from_env(cls) -> "DeepSeekClient":

@@ -2,6 +2,11 @@
 
 验证从"模型要工具调用"到"工具执行 → tool 消息回传 → 模型收尾"
 的整个 DeepSeek 消息格式链路,无需 API Key。
+
+小模型路由说明:本文件 AgentLoop(client) 未传 router,
+AgentLoop 内部构造纯 API 路由器(本地未配置/未启用),
+即"小模型路由未启用"的向后兼容路径;路由决策、升级阶梯、
+只读工具集与轨迹收集的专项测试见 tests/test_model_router.py。
 """
 import json
 import tempfile

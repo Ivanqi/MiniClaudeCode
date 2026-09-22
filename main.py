@@ -10,13 +10,15 @@ load_dotenv(override=True)
 
 from src.AgentLoop import AgentLoop
 from src.Configs import Configs
-from src.LlmClient import DeepSeekClient
+from src.ModelRouter import ModelRouter
 
 
 def main():
     Configs.CLI_ACTIVE = True
-    client = DeepSeekClient.from_env()
-    loop = AgentLoop(client)
+    # 混合路由:api_client(deepseek-chat)+ local_client(24GB 机上 vLLM 服务的微调小模型)
+    # 未配置 LOCAL_BASE_URL/LOCAL_MODEL_ID 时退化为纯 API 行为
+    router = ModelRouter.from_env()
+    loop = AgentLoop(router.api_client, router=router)
     loop.run_cli()
 
 

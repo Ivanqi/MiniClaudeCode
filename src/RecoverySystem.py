@@ -22,6 +22,14 @@ class RecoveryState:
         self.consecutive_overload = 0               # 连续 overload 错误计数
         self.has_attempted_reactive_compact = False  # 是否已尝试过 reactive 压缩
         self.current_model: str | None = None       # None 表示使用客户端默认模型
+        # ── 混合路由质量信号(每次 run_cycle 新建,即每个用户 turn 独立) ──
+        self.turn_escalated = False   # 本 turn 已从小模型升级到 API,剩余轮次不再走 local
+        self.escalation_reason = ""   # 升级原因(轨迹数据用)
+        self.started_local = None     # 本 turn 首次路由是否 local(None=尚未调用)
+        self.parse_failures = 0       # 本 turn 工具参数解析失败次数
+        self.tool_error_count = 0     # 本 turn 工具执行报错次数
+        self.last_tool_key = None     # 上一次工具调用 (name, args) 指纹,用于空转检测
+        self.same_tool_streak = 0     # 相同工具+参数连续调用次数
 
 
 def retry_delay(attempt: int) -> float:
