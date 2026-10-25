@@ -1,1 +1,0 @@
-if (password_verify($_POST["password"], $row["hash"])) { }

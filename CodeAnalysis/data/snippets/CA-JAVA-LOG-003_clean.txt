@@ -1,1 +1,0 @@
-LOGGER.info("user login ok, userId=" + userId);

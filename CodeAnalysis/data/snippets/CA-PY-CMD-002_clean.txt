@@ -1,1 +1,0 @@
-subprocess.run(["ls", "-l"], check=True)

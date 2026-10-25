@@ -1,1 +1,0 @@
-String sql = "SELECT * FROM users WHERE id = " + uid;

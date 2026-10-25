@@ -1,1 +1,0 @@
-$stmt = $conn->prepare("SELECT * FROM users WHERE name = ?");
