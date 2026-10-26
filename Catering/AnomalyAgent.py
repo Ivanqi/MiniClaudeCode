@@ -57,7 +57,7 @@ class AnomalyAgent:
                  planner: Planner | None = None,
                  run_dir=None, scope: tuple | None = None,
                  interactive: bool = False, mcp: McpSystem | None = None,
-                 tasks=None):
+                 tasks=None, confirm=None):
         self.client = client
         self.tools = tools or CateringTools()
         self.planner = planner or Planner()
@@ -67,17 +67,21 @@ class AnomalyAgent:
         self.interactive = interactive
         self.mcp = mcp                       # None = 探索时新建独立实例
         self.tasks = tasks                   # 可选的 src.TaskSystem 注入
+        # 写工具的逐次人工确认回调:(tool_name, arguments) -> bool;
+        # None 表示无法确认 → 拒绝(fail-closed)。
+        self.confirm = confirm
 
     @classmethod
     def build(cls, client=None, data_dir=None, run_dir=None, scope=None,
               interactive: bool = False,
               enable_writes: bool | None = None, mcp: McpSystem | None = None,
-              tasks=None) -> "AnomalyAgent":
+              tasks=None, confirm=None) -> "AnomalyAgent":
         """依赖注入构造:测试可注入 FakeClient / MCP 系统 / 任务系统与临时目录。"""
         hub = DataHub(data_dir)
         tools = CateringTools(hub, enable_writes=enable_writes)
         return cls(client=client, tools=tools, run_dir=run_dir, scope=scope,
-                   interactive=interactive, mcp=mcp, tasks=tasks)
+                   interactive=interactive, mcp=mcp, tasks=tasks,
+                   confirm=confirm)
 
     # ── 工作流模式:run_alert ──
 
@@ -325,6 +329,22 @@ class AnomalyAgent:
                     consecutive += 1
                     messages.append(tool_message(call.id, "Denied: " + why))
                     continue
+                # 写工具即使 enable_writes=1 也必须逐次确认;无确认回调即拒绝。
+                if call.name in ToolGuard.WRITE_TOOLS:
+                    approved = False
+                    if self.confirm is not None:
+                        try:
+                            approved = bool(
+                                self.confirm(call.name, call.arguments))
+                        except Exception:
+                            approved = False
+                    if not approved:
+                        denials += 1
+                        consecutive += 1
+                        messages.append(tool_message(
+                            call.id,
+                            f"Denied: {call.name} requires human confirmation"))
+                        continue
                 consecutive = 0
                 result = self._dispatch(handlers, call.name, call.arguments)
 

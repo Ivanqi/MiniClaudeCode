@@ -30,7 +30,7 @@ class HookSystem:
 
     def trigger(self, event: str, *args):
         """依次触发回调;返回第一个非 None 的结果(拦截值)。"""
-        for callback in self._hooks[event]:
+        for callback in list(self._hooks[event]):
             result = callback(*args)
             if result is not None:
                 return result
@@ -38,7 +38,8 @@ class HookSystem:
 
     def _register_defaults(self):
         self.register("UserPromptSubmit", self.user_prompt_hook)
-        self.register("PreToolUse", self.permission_hook)
+        # 权限判断已统一收口到 ToolDispatcher(SecurityPolicy + ApprovalGate);
+        # permission_hook 保留为兼容方法,但不再默认注册,避免重复弹确认。
         self.register("PreToolUse", self.log_hook)
         self.register("PostToolUse", self.large_output_hook)
         self.register("Stop", self.stop_hook)

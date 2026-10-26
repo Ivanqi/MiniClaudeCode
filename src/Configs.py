@@ -76,3 +76,65 @@ class Configs:
     # ── 队友自治 ──
     IDLE_POLL_INTERVAL = 5
     IDLE_TIMEOUT = 60
+
+    # ── 预算与配额(ToolDispatcher / AgentLoop / 子代理 / 队友 / 后台 / cron) ──
+    TURN_MAX_ROUNDS = int(os.getenv("TURN_MAX_ROUNDS", "40"))
+    TURN_MAX_TOOL_CALLS = int(os.getenv("TURN_MAX_TOOL_CALLS", "100"))
+    TURN_MAX_WALL_SECONDS = int(os.getenv("TURN_MAX_WALL_SECONDS", "600"))
+    # 0 = 不按 token 限额(部分兼容接口不返回 usage)
+    TURN_MAX_TOTAL_TOKENS = int(os.getenv("TURN_MAX_TOTAL_TOKENS", "200000"))
+    SUBAGENT_MAX_TOOL_CALLS = int(os.getenv("SUBAGENT_MAX_TOOL_CALLS", "60"))
+    SUBAGENT_MAX_WALL_SECONDS = int(os.getenv("SUBAGENT_MAX_WALL_SECONDS", "600"))
+    TEAMMATE_MAX_LIFETIME_SECONDS = int(
+        os.getenv("TEAMMATE_MAX_LIFETIME_SECONDS", "1800"))
+    TEAMMATE_MAX_API_CALLS = int(os.getenv("TEAMMATE_MAX_API_CALLS", "200"))
+    TEAMMATE_MAX_TASKS = int(os.getenv("TEAMMATE_MAX_TASKS", "20"))
+    MAX_TEAMMATES = int(os.getenv("MAX_TEAMMATES", "5"))
+
+    BACKGROUND_MAX_CONCURRENT = int(os.getenv("BACKGROUND_MAX_CONCURRENT", "4"))
+    BACKGROUND_MAX_QUEUED = int(os.getenv("BACKGROUND_MAX_QUEUED", "16"))
+    BACKGROUND_TASK_TIMEOUT_SECONDS = int(
+        os.getenv("BACKGROUND_TASK_TIMEOUT_SECONDS", "600"))
+    BACKGROUND_MAX_OUTPUT_CHARS = 100_000
+
+    TASK_LEASE_SECONDS = int(os.getenv("TASK_LEASE_SECONDS", "300"))
+    TASK_MAX_ATTEMPTS = int(os.getenv("TASK_MAX_ATTEMPTS", "3"))
+
+    BASH_TIMEOUT_DEFAULT = int(os.getenv("BASH_TIMEOUT_DEFAULT", "120"))
+    BASH_TIMEOUT_MAX = int(os.getenv("BASH_TIMEOUT_MAX", "600"))
+    READ_FILE_MAX_LINES = int(os.getenv("READ_FILE_MAX_LINES", "2000"))
+    MCP_CALL_TIMEOUT = int(os.getenv("MCP_CALL_TIMEOUT", "60"))
+    MCP_MAX_OUTPUT_CHARS = int(os.getenv("MCP_MAX_OUTPUT_CHARS", "100000"))
+
+    # ── 审计与备份 ──
+    AUDIT_MAX_BYTES = int(os.getenv("AUDIT_MAX_BYTES", "5000000"))
+    AUDIT_BACKUP_COUNT = int(os.getenv("AUDIT_BACKUP_COUNT", "3"))
+
+    # ── 沙箱(bwrap:只读根 + 可写工作区 + 默认无网络) ──
+    SANDBOX_MODE = os.getenv("SANDBOX_MODE", "auto")  # auto / require / off
+    SANDBOX_MEMORY_MB = int(os.getenv("SANDBOX_MEMORY_MB", "4096"))
+    SANDBOX_CPU_SECONDS = int(os.getenv("SANDBOX_CPU_SECONDS", "600"))
+
+    # ── 定时任务上限 ──
+    CRON_MAX_JOBS = int(os.getenv("CRON_MAX_JOBS", "50"))
+    CRON_MAX_PROMPT_CHARS = int(os.getenv("CRON_MAX_PROMPT_CHARS", "2000"))
+    CRON_MIN_INTERVAL_MINUTES = int(
+        os.getenv("CRON_MIN_INTERVAL_MINUTES", "5"))
+
+    # ── 逐次确认 ──
+    # 显式逃生舱:非交互模式下仍允许这些工具(格式: name 或 prefix*)
+    AUTO_APPROVE_TOOLS = tuple(
+        item.strip() for item in os.getenv("AUTO_APPROVE_TOOLS", "").split(",")
+        if item.strip())
+    print("\n --- b ---")
+    print(AUTO_APPROVE_TOOLS)
+
+    @classmethod
+    def audit_dir(cls) -> Path:
+        """审计目录(惰性解析 WORKDIR,便于测试重定向)。"""
+        return cls.WORKDIR / ".audit"
+
+    @classmethod
+    def backup_dir(cls) -> Path:
+        """写前备份目录(惰性解析 WORKDIR)。"""
+        return cls.WORKDIR / ".backups"

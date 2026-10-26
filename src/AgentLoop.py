@@ -6,8 +6,11 @@
 import json
 import threading
 import time
+import uuid
 
 from src.ActiveTeammates import ACTIVE_TEAMMATES
+from src.ApprovalGate import ApprovalGate
+from src.AuditLog import AuditLog
 from src.BackgroundTaskSystem import BACKGROUND_TASKS
 from src.BasicOper import BASIC_OPER
 from src.Configs import Configs
@@ -22,11 +25,15 @@ from src.PromptBuilder import PromptBuilder
 from src.ProtocolSystem import PROTOCOL
 from src.RecoverySystem import (RecoveryState, is_prompt_too_long_error,
                                 with_retry)
+from src.Sandbox import Sandbox
 from src.SkillSystem import SKILL_SYSTEM
 from src.SubagentSystem import SubagentSystem
 from src.TaskSystem import TASK_SYSTEM
 from src.TeammateSystem import TeammateSystem
 from src.Terminal import Terminal
+from src.ToolDispatcher import ToolDispatcher
+from src.ToolPolicy import (TurnBudget, lead_policy, local_policy,
+                            skipped_tool_messages)
 from src.ToolRegistry import ToolRegistry
 from src.TrajectoryLogger import TrajectoryLogger
 from src.WorktreeSystem import WORKTREE_SYSTEM
@@ -37,7 +44,8 @@ TODO_REMINDER_ROUNDS = 3
 class AgentLoop:
     """主代理循环:持有全部子系统,提供 run_cycle 与 CLI 入口。"""
 
-    def __init__(self, client, router: ModelRouter | None = None):
+    def __init__(self, client, router: ModelRouter | None = None,
+                 dispatcher: ToolDispatcher | None = None):
         self.client = client
         # 未提供路由器时退化为纯 API 行为(向后兼容测试与简单部署)
         self.router = router or ModelRouter(client)
@@ -50,16 +58,27 @@ class AgentLoop:
         self.protocol = PROTOCOL
         self.memories = MEMORIES
         self.prompt_builder = PromptBuilder()
-        self.teammates = TeammateSystem(client, router=self.router)
-        self.subagents = SubagentSystem(client, router=self.router)
         self.trajectory = TrajectoryLogger()  # Phase 3:路由轨迹 → 微调数据
+
+        # 统一分发:权限、确认、沙箱、审计、备份都收口在这里。
+        # 构造过程不做文件 I/O / 沙箱探测,便于测试注入。
+        self.audit = AuditLog()
+        self.approval = ApprovalGate()
+        self.sandbox = Sandbox()
+        self.dispatcher = dispatcher or ToolDispatcher(
+            basic=self.basic, hooks=self.hooks, audit=self.audit,
+            approval=self.approval, sandbox=self.sandbox)
+        self.teammates = TeammateSystem(
+            client, router=self.router, dispatcher=self.dispatcher)
+        self.subagents = SubagentSystem(
+            client, router=self.router, dispatcher=self.dispatcher)
 
         # 工具注册表:各系统自持工具定义与处理器,在此聚合。
         self.tool_registry = ToolRegistry(self.mcp)
         # 通过 handlers() 方法返回该字典的副本或直接引用，供外部查询或调用
         for system in (self.basic, TASK_SYSTEM, WORKTREE_SYSTEM, SKILL_SYSTEM,
                        self.cron, self.mcp, self.teammates, self.subagents,
-                       self.compact):
+                       self.background, self.compact):
             self.tool_registry.register_system(system)
 
         self.rounds_since_todo = 0
@@ -100,10 +119,9 @@ class AgentLoop:
 
         - 本地小模型:使用精简只读工具集(slim_tools);重试耗尽(RuntimeError)后升级 API;
         - 纯问答任务剥离工具集(tools=None);
-        - API:沿用 with_retry 的 429/503 处理与 FALLBACK_MODEL_ID 降级。
+        - API:沿用 with_retry 的 429/503 处理与 FALLBACK_MODEL_ID 降级;
+        - system prompt 的工具清单来自本轮实际路由后的工具集。
         """
-        # 提示词 和 skills 加载
-        system = self.prompt_builder.assemble(context)
         decision = self.router.route(messages, caller="main", flags={
             "escalated": state.turn_escalated,
             "active_teammates": bool(ACTIVE_TEAMMATES.names()),
@@ -120,14 +138,16 @@ class AgentLoop:
             routed_tools = slim_tools
         else:
             routed_tools = tools
+        system = self.prompt_builder.assemble(context, routed_tools)
         return (self._create_with_retry(client, messages, system, routed_tools,
                                         routed_max, model, state, decision,
-                                        full_tools=tools),
+                                        context=context, full_tools=tools),
                 decision)
 
     def _create_with_retry(self, client, messages: list, system: str,
                            tools: list | None, max_tokens: int, model: str,
                            state: RecoveryState, decision: RouterDecision,
+                           context: dict | None = None,
                            full_tools: list | None = None):
         """with_retry 封装;本地模型重试耗尽时升级 API 再试一次。
 
@@ -150,8 +170,10 @@ class AgentLoop:
                     "active_teammates": bool(ACTIVE_TEAMMATES.names())})
                 api_client, api_model, api_max = self.router.apply(
                     upgraded, max_tokens, model_override=state.current_model)
+                full_system = self.prompt_builder.assemble(context or {},
+                                                           full_tools)
                 return with_retry(
-                    lambda: api_client.create(messages, system=system,
+                    lambda: api_client.create(messages, system=full_system,
                                               tools=full_tools,
                                               max_tokens=api_max,
                                               model=api_model),
@@ -161,12 +183,18 @@ class AgentLoop:
     # ── 主循环 ──
 
     def run_cycle(self, messages: list, context: dict):
-        tools, handlers = self.tool_registry.assemble()
-        slim_tools, slim_handlers = self.tool_registry.assemble(slim=True)
+        budget = TurnBudget()
         state = RecoveryState()
         max_tokens = Configs.DEFAULT_MAX_TOKENS
+        turn_id = uuid.uuid4().hex[:8]
+        closing_reason = ""
 
         while True:
+            reason = budget.exhausted_reason()
+            if reason:
+                closing_reason = reason
+                break
+
             fired = self.cron.consume_queue()
             for job in fired:
                 messages.append(user_message(f"[Scheduled] {job.prompt}"))
@@ -183,14 +211,10 @@ class AgentLoop:
             tools, handlers = self.tool_registry.assemble()
             slim_tools, slim_handlers = self.tool_registry.assemble(slim=True)
 
+            budget.record_round()  # 失败的 LLM 尝试也计入轮数
             try:
-                print("call_llm args")
-                print(messages)
-                print(context)
-                # print(tools)
                 response, decision = self.call_llm(messages, context, tools,
                                                    slim_tools, state, max_tokens)
-                print(response)
             except Exception as e:
                 # 应急
                 if is_prompt_too_long_error(e) and not state.has_attempted_reactive_compact:
@@ -201,6 +225,7 @@ class AgentLoop:
                                  "content": f"[Error] {type(e).__name__}: {e}"})
                 self.trajectory.log_turn(messages, state, error=str(e))
                 return
+            budget.record_usage(getattr(response, "usage", None))
 
             # ── 质量信号:本地小模型失败 → 升级 API 重试本轮(不追加坏消息) ──
             if response.has_parse_error:
@@ -254,14 +279,15 @@ class AgentLoop:
                 self.trajectory.log_turn(messages, state)
                 return
 
-            # 本地轮次使用只读精简 handler:幻觉出不存在的工具名时
-            # 查不到 handler → 报错 → 触发质量信号升级 API
+            # 本地轮次使用只读策略 + 精简 handler;幻觉工具名会被策略/分发器拒绝,
+            # 进而触发质量信号升级 API。
             round_handlers = slim_handlers if decision.local else handlers
+            policy = local_policy() if decision.local else lead_policy()
 
             results = []
             compacted_now = False
             # function call
-            for call in response.tool_calls:
+            for call_index, call in enumerate(response.tool_calls):
                 Terminal.print(f"{Terminal.CYAN}> {call.name}{Terminal.RESET}")
 
                 if call.name == "compact":
@@ -271,28 +297,46 @@ class AgentLoop:
                     compacted_now = True
                     break
 
-                blocked = self.hooks.trigger("PreToolUse", call)
-                if blocked:
-                    results.append(tool_message(call.id, str(blocked)))
-                    continue
+                reason = budget.exhausted_reason()
+                if reason:
+                    results.extend(skipped_tool_messages(
+                        response.tool_calls[call_index:],
+                        f"budget exceeded: {reason}"))
+                    closing_reason = reason
+                    break
+                budget.reserve_tool_call()
 
-                # 慢操作放后台
-                if self.background.should_run_background(call.name, call.arguments):
-                    bg_id = self.background.start(call, round_handlers)
-                    output = (f"[Background task {bg_id} started] "
-                              "Result will arrive as a task_notification.")
-                    results.append(tool_message(call.id, output))
-                    continue
-
-                # tool handler 辅助工具
-                handler = round_handlers.get(call.name)
-                output = self.basic.call_tool_handler(handler, call.arguments, call.name)
-                self.hooks.trigger("PostToolUse", call, output)
+                metadata = self.tool_registry.metadata(call.name)
+                auth = self.dispatcher.authorize(
+                    call, policy, round_handlers, metadata=metadata,
+                    allow_prompt=True, turn_id=turn_id)
+                result_ok = False
+                if not auth.allowed:
+                    output = (auth.denial.content if auth.denial else "Denied")
+                elif self.background.should_run_background(call.name,
+                                                           call.arguments):
+                    bg_id = self.background.start(
+                        call, round_handlers, dispatcher=self.dispatcher,
+                        policy=policy, authorization=auth, turn_id=turn_id)
+                    if bg_id:
+                        output = (f"[Background task {bg_id} started] "
+                                  "Result will arrive as a task_notification.")
+                        result_ok = True
+                    else:
+                        result = self.dispatcher.execute(
+                            call, policy, round_handlers,
+                            authorization=auth, turn_id=turn_id)
+                        output, result_ok = result.content, result.ok
+                else:
+                    result = self.dispatcher.execute(
+                        call, policy, round_handlers,
+                        authorization=auth, turn_id=turn_id)
+                    output, result_ok = result.content, result.ok
                 Terminal.print(str(output)[:300])
 
                 # ── 质量信号:工具报错 / 空转检测 → 下一轮升级 API ──
-                if decision.local:
-                    if isinstance(output, str) and "error" in output.lower():
+                if decision.local:metadata
+                    if not result_ok:
                         state.tool_error_count += 1
                         if state.tool_error_count >= Configs.MAX_TOOL_ERRORS_BEFORE_ESCALATE:
                             state.turn_escalated = True
@@ -325,6 +369,33 @@ class AgentLoop:
 
             # 通知和工具结果合入同一条 user 消息
             messages.extend(self.build_tool_results(results))
+            if closing_reason:
+                self._close_turn(messages, context, state, closing_reason,
+                                 turn_id)
+                return
+
+    def _close_turn(self, messages: list, context: dict, state: RecoveryState,
+                    reason: str, turn_id: str):
+        """预算耗尽后的强制收敛:一次无工具调用,不允许悬挂 tool_call。"""
+        state.budget_exhausted_reason = reason
+        self.inject_background_notifications(messages)
+        messages.append(user_message(
+            f"[Budget reached: {reason}. Based on existing results, give a "
+            "final answer now. Do not call any tools.]"))
+        system = self.prompt_builder.assemble(context, None)
+        try:
+            response = self.client.create(
+                messages, system=system, tools=None,
+                max_tokens=Configs.SUMMARY_MAX_TOKENS)
+            text = (response.content or "").strip()
+        except Exception as exc:
+            text = (f"[Budget exhausted: {reason}. "
+                    f"Summary failed: {type(exc).__name__}: {exc}]")
+        if not text:
+            text = f"[Budget exhausted: {reason}. No summary produced.]"
+        messages.append({"role": "assistant", "content": text})
+        self.hooks.trigger("Stop", messages)
+        self.trajectory.log_turn(messages, state)
 
     # ── 输出与定时 ──
 

@@ -5,7 +5,6 @@ MCP 工具定义使用 MCP 约定的 inputSchema 字段,
 """
 import re
 
-from src.Configs import Configs
 from src.LlmClient import make_function_tool
 from src.McpClient import MCPClient
 from src.Terminal import Terminal
@@ -18,10 +17,12 @@ def _mock_server_docs() -> MCPClient:
     client.register(
         tool_defs=[
             {"name": "search", "description": "Search documentation. (readOnly)",
+             "annotations": {"readOnlyHint": True},
              "inputSchema": {"type": "object",
                              "properties": {"query": {"type": "string"}},
                              "required": ["query"]}},
             {"name": "get_version", "description": "Get API version. (readOnly)",
+             "annotations": {"readOnlyHint": True},
              "inputSchema": {"type": "object", "properties": {},
                              "required": []}},
         ],
@@ -38,10 +39,12 @@ def _mock_server_deploy() -> MCPClient:
         tool_defs=[
             {"name": "trigger",
              "description": "Trigger a deployment. (destructive — requires approval in real CC)",
+             "annotations": {"destructiveHint": True},
              "inputSchema": {"type": "object",
                              "properties": {"service": {"type": "string"}},
                              "required": ["service"]}},
             {"name": "status", "description": "Check deployment status. (readOnly)",
+             "annotations": {"readOnlyHint": True},
              "inputSchema": {"type": "object",
                              "properties": {"service": {"type": "string"}},
                              "required": ["service"]}},
@@ -63,6 +66,7 @@ class McpSystem:
 
     def __init__(self):
         self.clients: dict[str, MCPClient] = {}
+        self._metadata: dict[str, dict] = {}
 
     @staticmethod
     def normalize_mcp_name(name: str) -> str:
@@ -94,13 +98,30 @@ class McpSystem:
             for tool_def in mcp_client.tools:
                 safe_tool = self.normalize_mcp_name(tool_def["name"])
                 prefixed = f"mcp__{safe_server}__{safe_tool}"
+                annotations = dict(tool_def.get("annotations") or {})
+                if not annotations:
+                    # 真实服务器不一定提供 annotations:从描述标记保守推断
+                    description = str(tool_def.get("description", "")).lower()
+                    if "readonly" in description or "read-only" in description:
+                        annotations = {"readOnlyHint": True}
+                    elif "destructive" in description:
+                        annotations = {"destructiveHint": True}
                 tools.append(make_function_tool(
                     prefixed,
                     tool_def.get("description", ""),
                     tool_def.get("inputSchema", {})))
+                self._metadata[prefixed] = {
+                    "server": server_name,
+                    "tool": tool_def["name"],
+                    "annotations": annotations,
+                }
                 handlers[prefixed] = (
                     lambda *, c=mcp_client, t=tool_def["name"], **kw: c.call_tool(t, kw))
         return tools, handlers
+
+    def metadata(self, name: str) -> dict:
+        """返回 MCP 工具的注解(merged_tools 后可用)。"""
+        return dict(self._metadata.get(name, {}))
 
     # ── 工具层 ──
 

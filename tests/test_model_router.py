@@ -19,7 +19,6 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from Catering.AnomalyAgent import AnomalyAgent
 from src.AgentLoop import AgentLoop
 from src.Configs import Configs
 from src.LlmClient import LlmResponse, ToolCall, user_message

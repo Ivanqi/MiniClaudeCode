@@ -7,11 +7,12 @@ import json
 import random
 import threading
 import time
-from dataclasses import asdict, dataclass, field
-from datetime import datetime
+from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from src.Configs import Configs
+from src.FileLock import atomic_write_text, file_lock
 from src.LlmClient import make_function_tool
 from src.Terminal import Terminal
 
@@ -32,7 +33,7 @@ class CronScheduler:
         self.durable_path = durable_path or Configs.DURABLE_CRON_PATH
         self.scheduled_jobs: dict[str, CronJob] = {}
         self.queue: list[CronJob] = []
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()
         self._last_fired: dict[str, str] = {}
         self.load_durable_jobs()
 
@@ -123,44 +124,88 @@ class CronScheduler:
 
     # ── 任务注册与持久化 ──
 
+    @classmethod
+    def _min_interval_minutes(cls, cron_expr: str) -> int | None:
+        """扫描一周,返回相邻触发的最小间隔;匹配不足两次返回 None。"""
+        start = datetime(2026, 1, 5, 0, 0)  # 周一,覆盖 DOW
+        last, minimum = None, None
+        for offset in range(7 * 24 * 60):
+            moment = start + timedelta(minutes=offset)
+            if not cls.cron_matches(cron_expr, moment):
+                continue
+            if last is not None:
+                gap = int((moment - last).total_seconds() // 60)
+                minimum = gap if minimum is None else min(minimum, gap)
+            last = moment
+        return minimum
+
     def schedule_job(self, cron: str, prompt: str,
                      recurring: bool = True, durable: bool = True) -> CronJob | str:
         err = self.validate_cron(cron)
         if err:
             return err
-        job = CronJob(
-            id=f"cron_{random.randint(0, 999999):06d}",
-            cron=cron, prompt=prompt,
-            recurring=recurring, durable=durable)
+        if not isinstance(prompt, str) or not prompt.strip():
+            return "prompt cannot be empty"
+        if len(prompt) > Configs.CRON_MAX_PROMPT_CHARS:
+            return (f"prompt too long: {len(prompt)} > "
+                    f"{Configs.CRON_MAX_PROMPT_CHARS}")
+        interval = self._min_interval_minutes(cron)
+        if interval is not None and \
+                interval < Configs.CRON_MIN_INTERVAL_MINUTES:
+            return (f"schedule too frequent: every {interval} minute(s), "
+                    f"minimum is {Configs.CRON_MIN_INTERVAL_MINUTES}")
         with self._lock:
+            if len(self.scheduled_jobs) >= Configs.CRON_MAX_JOBS:
+                return f"too many cron jobs (max {Configs.CRON_MAX_JOBS})"
+            job_id = f"cron_{random.randint(0, 999999):06d}"
+            while job_id in self.scheduled_jobs:
+                job_id = f"cron_{random.randint(0, 999999):06d}"
+            job = CronJob(
+                id=job_id, cron=cron, prompt=prompt,
+                recurring=recurring, durable=durable)
             self.scheduled_jobs[job.id] = job
-        if durable:
-            self.save_durable_jobs()
+            if durable:
+                self.save_durable_jobs()
         return job
 
     def cancel_job(self, job_id: str) -> str:
         with self._lock:
             job = self.scheduled_jobs.pop(job_id, None)
-        if not job:
-            return f"Job {job_id} not found"
-        if job.durable:
-            self.save_durable_jobs()
+            if not job:
+                return f"Job {job_id} not found"
+            if job.durable:
+                self.save_durable_jobs()
         return f"Cancelled {job_id}"
 
     def save_durable_jobs(self):
-        durable = [asdict(job) for job in self.scheduled_jobs.values() if job.durable]
-        self.durable_path.write_text(json.dumps(durable, indent=2))
+        with self._lock:
+            durable = [asdict(job) for job in self.scheduled_jobs.values()
+                       if job.durable]
+        payload = json.dumps(durable, indent=2, ensure_ascii=False)
+        with file_lock(Path(str(self.durable_path) + ".lock")):
+            atomic_write_text(self.durable_path, payload)
 
     def load_durable_jobs(self):
         if not self.durable_path.exists():
             return
         try:
-            for item in json.loads(self.durable_path.read_text()):
+            raw = json.loads(self.durable_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return
+        if not isinstance(raw, list):
+            return
+        for item in raw:
+            try:
                 job = CronJob(**item)
-                if not self.validate_cron(job.cron):
-                    self.scheduled_jobs[job.id] = job
-        except Exception:
-            pass
+            except TypeError:
+                continue
+            if self.validate_cron(job.cron):
+                continue
+            if len(job.prompt) > Configs.CRON_MAX_PROMPT_CHARS:
+                continue
+            if len(self.scheduled_jobs) >= Configs.CRON_MAX_JOBS:
+                break
+            self.scheduled_jobs[job.id] = job
 
     # ── 调度线程与队列 ──
 

@@ -9,7 +9,6 @@
   本模块只负责"队列触发后做什么"(扫描 → 诊断 → 汇总)。
 """
 import threading
-import time
 
 from src.CronScheduler import CronScheduler
 from src.Terminal import Terminal

@@ -6,7 +6,10 @@
 import ast
 import glob as glob_module
 import json
+import os
+import signal
 import subprocess
+import time
 from pathlib import Path
 
 from src.Configs import Configs
@@ -28,7 +31,7 @@ class BasicOper:
     @staticmethod
     def safe_path(p: str, cwd: Path | None = None) -> Path:
         """解析路径并保证其位于 base 目录之内,否则抛 ValueError。"""
-        base = cwd or Configs.WORKDIR
+        base = Path(cwd or Configs.WORKDIR).resolve()
         path = (base / p).resolve()
         if not path.is_relative_to(base):
             raise ValueError(f"Path escapes workspace: {p}")
@@ -36,25 +39,94 @@ class BasicOper:
 
     # ── 基础处理器 ──
 
-    def run_bash(self, command: str, cwd: Path | None = None,
-                 run_in_background: bool = False) -> str:
-        # run_in_background 由调度层(BackgroundTaskSystem)消费,直接执行时忽略。
+    @staticmethod
+    def _kill_process_group(proc: subprocess.Popen):
         try:
-            r = subprocess.run(command, shell=True, cwd=cwd or Configs.WORKDIR,
-                               capture_output=True, text=True, timeout=BASH_TIMEOUT_SECONDS)
-            out = (r.stdout + r.stderr).strip()
-            return out[:OUTPUT_LIMIT_CHARS] if out else "(no output)"
-        except subprocess.TimeoutExpired:
-            return f"Error: Timeout ({BASH_TIMEOUT_SECONDS}s)"
+            os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+        except (ProcessLookupError, PermissionError, OSError):
+            try:
+                proc.kill()
+            except OSError:
+                pass
+
+    def run_bash_process(self, command: str, cwd: Path | None = None,
+                         timeout: int | None = None, env: dict | None = None,
+                         argv: list[str] | None = None,
+                         cancel_event=None) -> tuple[str, int, bool]:
+        """执行 shell 命令,返回 (文本, 退出码, 是否截断)。
+
+        argv 可由 Sandbox 包装;cancel_event 用于后台取消(Popen 进程组 kill)。
+        退出码:-1 超时,-2 取消。
+        """
+        limit = (Configs.BASH_TIMEOUT_DEFAULT if timeout is None else timeout)
+        limit = max(1, min(int(limit), Configs.BASH_TIMEOUT_MAX))
+        argv = argv or ["/bin/sh", "-c", command]
+        try:
+            proc = subprocess.Popen(
+                argv, cwd=str(cwd or Configs.WORKDIR),
+                stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                text=True, errors="replace", env=env,
+                start_new_session=True)
+        except (OSError, ValueError) as exc:
+            return f"Error: {exc}", -1, False
+
+        deadline = time.monotonic() + limit
+        timed_out = cancelled = False
+        output = ""
+        while True:
+            if cancel_event is not None and cancel_event.is_set():
+                cancelled = True
+                self._kill_process_group(proc)
+                break
+            if time.monotonic() >= deadline:
+                timed_out = True
+                self._kill_process_group(proc)
+                break
+            try:
+                output = proc.communicate(timeout=0.2)[0]
+                break
+            except subprocess.TimeoutExpired:
+                continue
+        if timed_out or cancelled:
+            try:
+                output = proc.communicate(timeout=2)[0]
+            except subprocess.TimeoutExpired:
+                output = ""
+
+        if timed_out:
+            return f"Error: Timeout ({limit}s)", -1, False
+        if cancelled:
+            return "Error: Cancelled", -2, False
+        text = (output or "").strip()
+        truncated = len(text) > OUTPUT_LIMIT_CHARS
+        if truncated:
+            text = (text[:OUTPUT_LIMIT_CHARS]
+                    + f"\n...[truncated {len(text) - OUTPUT_LIMIT_CHARS} chars]")
+        return (text or "(no output)"), proc.returncode, truncated
+
+    def run_bash(self, command: str, cwd: Path | None = None,
+                 run_in_background: bool = False, timeout: int | None = None,
+                 env: dict | None = None, argv: list[str] | None = None,
+                 cancel_event=None) -> str:
+        # run_in_background 由调度层(BackgroundTaskSystem)消费,直接执行时忽略。
+        text, _, _ = self.run_bash_process(
+            command, cwd=cwd, timeout=timeout, env=env, argv=argv,
+            cancel_event=cancel_event)
+        return text
 
     def run_read(self, path: str, limit: int | None = None,
                  offset: int = 0, cwd: Path | None = None) -> str:
         try:
-            lines = self.safe_path(path, cwd).read_text().splitlines()
+            lines = self.safe_path(path, cwd).read_text(
+                errors="replace").splitlines()
             offset = max(int(offset or 0), 0)
-            limit = int(limit) if limit is not None else None
+            max_lines = Configs.READ_FILE_MAX_LINES
+            limit = max_lines if limit is None else int(limit)
+            if limit <= 0:
+                limit = max_lines
+            limit = min(limit, max_lines)
             lines = lines[offset:]
-            if limit is not None and limit < len(lines):
+            if limit < len(lines):
                 lines = lines[:limit] + [f"... ({len(lines) - limit} more lines)"]
             return "\n".join(lines)
         except Exception as e:
@@ -83,7 +155,7 @@ class BasicOper:
 
     def run_glob(self, pattern: str, cwd: Path | None = None) -> str:
         try:
-            base = cwd or Configs.WORKDIR
+            base = Path(cwd or Configs.WORKDIR).resolve()
             results = []
             for match in glob_module.glob(pattern, root_dir=base):
                 if (base / match).resolve().is_relative_to(base):
@@ -143,13 +215,16 @@ class BasicOper:
             make_function_tool("bash", "Run a shell command.",
                 {"type": "object",
                  "properties": {"command": {"type": "string"},
+                                "timeout": {"type": "integer", "minimum": 1,
+                                            "maximum": Configs.BASH_TIMEOUT_MAX},
                                 "run_in_background": {"type": "boolean"}},
                  "required": ["command"]}),
             make_function_tool("read_file", "Read file contents.",
                 {"type": "object",
                  "properties": {"path": {"type": "string"},
-                                "limit": {"type": "integer"},
-                                "offset": {"type": "integer"}},
+                                "limit": {"type": "integer", "minimum": 1,
+                                          "maximum": Configs.READ_FILE_MAX_LINES},
+                                "offset": {"type": "integer", "minimum": 0}},
                  "required": ["path"]}),
             make_function_tool("write_file", "Write content to a file.",
                 {"type": "object",

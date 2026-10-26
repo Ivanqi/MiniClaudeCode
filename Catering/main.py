@@ -200,8 +200,11 @@ def cmd_explore(args, client) -> int:
         Terminal.print("探索模式需要 LLM(未配置 DEEPSEEK_API_KEY),"
                        "工作流模式可用 --no-llm 离线运行。")
         return 1
+    # 写工具(archive_case)逐次确认;非 TTY/后台执行时 ApprovalGate 自动拒绝。
+    from src.ApprovalGate import ApprovalGate
     agent = AnomalyAgent.build(client=client, run_dir=args.report_dir,
-                               interactive=False)
+                               interactive=False,
+                               confirm=ApprovalGate().confirm_tool)
     result = agent.explore(args.agentic)
     if result.get("error"):
         Terminal.print(f"{Terminal.RED}{result['error']}{Terminal.RESET}")

@@ -4,17 +4,16 @@
 新增工具 = 在所属系统里实现 + 注册该系统,无需改动调度代码。
 """
 from src.McpSystem import MCP_SYSTEM, McpSystem
+from src.ToolPolicy import READONLY_TOOL_NAMES as POLICY_READONLY_TOOL_NAMES
 
 
 class ToolRegistry:
     """工具注册表:聚合内置工具与 MCP 工具。"""
 
-    # 本地小模型只读工具白名单(Phase 4):
-    # 纯信息工具,不含 bash/写操作/多代理 —— 3B 级模型误生成 bash 的风险最大,
-    # 只给它能安全执行的只读面;模型若幻觉出不存在的工具名,
-    # slim handlers 里查不到 → 报错 → 触发质量信号升级 API。
-    READONLY_TOOL_NAMES = {"read_file", "glob", "list_tasks", "get_task",
-                           "list_crons", "load_skill"}
+    # 本地小模型只读工具白名单(单一定义在 ToolPolicy,避免两处漂移)。
+    READONLY_TOOL_NAMES = POLICY_READONLY_TOOL_NAMES
+    # compact 由 AgentLoop 特判,故意没有 handler。
+    HANDLERLESS_TOOLS = {"compact"}
 
     def __init__(self, mcp: McpSystem = MCP_SYSTEM):
         self.mcp = mcp
@@ -24,23 +23,64 @@ class ToolRegistry:
         """注册一个提供 tool_defs()/handlers() 的系统。"""
         self._systems.append(system)
 
+    @staticmethod
+    def _system_name(system) -> str:
+        return type(system).__name__
+
+    def _assemble_systems(self) -> tuple[list[dict], dict]:
+        """合并系统工具并做重名/handler 完整性校验。"""
+        tools, handlers = [], {}
+        def_sources, handler_sources = {}, {}
+        for system in self._systems:
+            source = self._system_name(system)
+            for tool_def in system.tool_defs():
+                name = tool_def["function"]["name"]
+                if name in def_sources:
+                    raise ValueError(
+                        f"duplicate tool definition '{name}' from "
+                        f"{def_sources[name]} and {source}")
+                def_sources[name] = source
+                tools.append(tool_def)
+            for name, handler in system.handlers().items():
+                if name in handler_sources:
+                    raise ValueError(
+                        f"duplicate tool handler '{name}' from "
+                        f"{handler_sources[name]} and {source}")
+                handler_sources[name] = source
+                handlers[name] = handler
+        missing = [name for name in def_sources
+                   if name not in handlers
+                   and name not in self.HANDLERLESS_TOOLS]
+        if missing:
+            raise ValueError(
+                "tool definitions without handlers: " + ", ".join(sorted(missing)))
+        return tools, handlers
+
     def assemble(self, slim: bool = False) -> tuple[list[dict], dict]:
         """合并内置工具 + 所有已连接 MCP 工具,返回 (定义列表, 处理器字典)。
 
         slim=True:只保留只读白名单工具(不含 MCP 工具,能力未知一律排除),
         供本地小模型调用。
         """
-        tools, handlers = [], {}
-        for system in self._systems:
-            tools.extend(system.tool_defs())
-            handlers.update(system.handlers())
+        tools, handlers = self._assemble_systems()
         if slim:
             tools = [t for t in tools
                      if t["function"]["name"] in self.READONLY_TOOL_NAMES]
             handlers = {name: handler for name, handler in handlers.items()
                         if name in self.READONLY_TOOL_NAMES}
             return tools, handlers
+
         mcp_tools, mcp_handlers = self.mcp.merged_tools()
-        tools.extend(mcp_tools)
+        existing = {t["function"]["name"] for t in tools}
+        for tool_def in mcp_tools:
+            name = tool_def["function"]["name"]
+            if name in existing or name in handlers:
+                raise ValueError(f"duplicate MCP tool name '{name}'")
+            existing.add(name)
+            tools.append(tool_def)
         handlers.update(mcp_handlers)
         return tools, handlers
+
+    def metadata(self, name: str) -> dict:
+        getter = getattr(self.mcp, "metadata", None)
+        return getter(name) if getter else {}

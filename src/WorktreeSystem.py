@@ -84,6 +84,10 @@ class WorktreeSystem:
         return f"Worktree '{name}' created at {path}"
 
     def bind_task_to_worktree(self, task_id: str, worktree_name: str):
+        setter = getattr(self.tasks, "set_worktree", None)
+        if setter is not None:
+            setter(task_id, worktree_name)
+            return
         task = self.tasks.load_task(task_id)
         task.worktree = worktree_name
         self.tasks.save_task(task)
@@ -95,6 +99,15 @@ class WorktreeSystem:
         path = self.worktrees_dir / name
         if not path.exists():
             return f"Worktree '{name}' not found"
+        try:
+            active = [task.id for task in self.tasks.list_tasks()
+                      if task.worktree == name and task.status == "in_progress"]
+        except Exception:
+            active = []
+        if active and not discard_changes:
+            return (f"Worktree '{name}' has in-progress task(s): "
+                    f"{', '.join(active)}. Complete them first, or use "
+                    "discard_changes=true after confirmation.")
         if not discard_changes:
             files, commits = self._count_worktree_changes(path)
             if files < 0:

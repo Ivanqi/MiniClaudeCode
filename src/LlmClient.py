@@ -56,6 +56,7 @@ class LlmResponse:
     content: str
     tool_calls: list[ToolCall] = field(default_factory=list)
     finish_reason: str = "stop"
+    usage: dict = field(default_factory=dict)
 
     @property
     def has_tool_calls(self) -> bool:
@@ -198,4 +199,5 @@ class DeepSeekClient:
             content=message.get("content") or "",
             tool_calls=[ToolCall.from_api(raw) for raw in (message.get("tool_calls") or [])],
             finish_reason=choice.get("finish_reason") or "stop",
+            usage=data.get("usage") or {},
         )

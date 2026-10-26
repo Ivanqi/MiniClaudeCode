@@ -17,6 +17,7 @@ import json
 import time
 
 from src.Configs import Configs
+from src.SecurityPolicy import redact_obj
 from src.Terminal import Terminal
 
 
@@ -44,7 +45,7 @@ class TrajectoryLogger:
         else:
             outcome = "api"
         record = {
-            "messages": messages,
+            "messages": redact_obj(messages),
             "metadata": {
                 "outcome": outcome,
                 "started_local": bool(state.started_local),

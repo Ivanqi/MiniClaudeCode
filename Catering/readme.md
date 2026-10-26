@@ -1,6 +1,6 @@
 # Catering —— 餐饮门店经营异常分析 Agent
 
-基于 `src/` 基础设施(LLM 客户端、工具注册表模式、权限钩子、错误恢复链)实现的第一个餐饮业务 Agent:
+基于 `src/` 基础设施(LLM 客户端、工具注册表模式、统一工具分发、错误恢复链)实现的第一个餐饮业务 Agent:
 发现"某店营业额异常"后,不靠 LLM 猜原因,而是沿**确定性诊断链**逐层取数、判定、取证,
 最终给出**每个结论都能回溯到工具数据**的可验证诊断报告与行动建议。
 
@@ -64,7 +64,7 @@
 | 企业知识库 | `KnowledgeBaseSource` | `data/cases/*.json`(历史案例+Agent 归档) |
 | 数据分析服务 | `Metrics` | 纯计算,无存储 |
 
-`Tools.py` 暴露 12 个只读工具 + 1 个受控写工具(`archive_case`,默认禁用),
+`Tools.py` 暴露 12 个只读工具 + 1 个受控写工具(`archive_case`,默认禁用;开启后探索模式仍需逐次人工确认),
 `tool_defs()/handlers()` 双接口可直接注册进 `src.ToolRegistry`。
 
 ### 3. Workflow(需求 3)
@@ -86,7 +86,7 @@
 | 数据校验 | 行级必填校验;`missing_fields` 显式标记不填 0;加和自洽校验(Σ时段=Σ渠道=Σ菜品=日总);LMDI 残差校验 |
 | 规则约束 | 诊断链数据驱动 + op/when 白名单;步骤状态仅 normal/anomaly/no_data/excluded |
 | 输出结构化 | `DiagnosisReport` 单一 schema + `OutputValidator` 手写校验;证据引用必须闭合 |
-| 权限控制 | `ToolGuard`:工具白名单+门店范围+日期范围+写工具确认,双模式共用 |
+| 权限控制 | `ToolGuard`:工具白名单+门店范围+日期范围+写工具能力开关;探索模式在 guard 通过后还会调用 `confirm` 逐次确认,无确认回调即 fail-closed |
 | 错误恢复 | LLM 429/503 走 `src.RecoverySystem.with_retry`;单步数据失败→no_data 不炸链;LLM 输出非法→重试 1 次→模板降级(永不空报告) |
 
 ### 5. 主因判定口径(Metrics)
@@ -159,7 +159,7 @@ python Catering/gen_fixtures.py
 |---|---|
 | `DEEPSEEK_API_KEY` | 探索模式与 LLM 归纳所需;不配置时工作流自动模板降级 |
 | `CATERING_SCOPE` | 授权门店列表(逗号分隔),如 `A店,B店`;空=全部 |
-| `CATERING_ENABLE_WRITES` | 置 `1` 暴露写工具 `archive_case`(仍需人工确认) |
+| `CATERING_ENABLE_WRITES` | 置 `1` 暴露写工具 `archive_case`;探索模式仍需逐次人工确认(TTY 交互),非 TTY 自动拒绝 |
 | `CATERING_RUN_DIR` | 运行产物目录(默认 `.catering`) |
 
 ## 样本数据与评测
@@ -180,7 +180,7 @@ LMDI 期望值由生成器**内联独立实现**写入 `data/expected_contributi
 ## 测试
 
 ```bash
-python -m unittest discover -s tests -v    # 65 个用例(含 Catering 32 个),全部离线
+python -m unittest discover -s tests -v    # 209 个用例(含 Catering 39 个),全部离线
 ```
 
 ## 已知限制(v1)
@@ -189,4 +189,5 @@ python -m unittest discover -s tests -v    # 65 个用例(含 Catering 32 个),�
 - 样本数据窗口无停业日,LMDI 零/负基期场景由单测覆盖(标 structural_change,不猜值);
 - 知识库检索为关键词/标签打分,未用向量检索;
 - 探索模式产出为自由文本(不强制报告 schema),评测重点为调用效率与权限零违规;
+- 写工具逐次确认依赖 TTY;cron/非交互场景会 fail-closed,不自动归档;
 - 品类客单以"订单"为分母,与门店客单价(客流分母)口径不同,不可直接比较。

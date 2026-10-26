@@ -4,11 +4,14 @@
 只有在上下文仍然过大、或模型显式请求 compact 时才调用模型做摘要。
 """
 import json
+import re
 import time
+import uuid
 from pathlib import Path
 
 from src.Configs import Configs
 from src.LlmClient import make_function_tool, user_message
+from src.SecurityPolicy import redact, redact_obj
 from src.Terminal import Terminal
 
 
@@ -57,11 +60,14 @@ class ContextCompact:
         if len(output) <= Configs.PERSIST_THRESHOLD:
             return output
         self.tool_results_dir.mkdir(parents=True, exist_ok=True)
-        path = self.tool_results_dir / f"{tool_call_id}.txt"
+        safe_id = re.sub(r"[^A-Za-z0-9_-]", "_", str(tool_call_id))[:64] \
+            or uuid.uuid4().hex[:8]
+        text = redact(output)
+        path = self.tool_results_dir / f"{safe_id}.txt"
         if not path.exists():
-            path.write_text(output)
+            path.write_text(text, encoding="utf-8")
         return (f"<persisted-output>\nFull output: {path}\n"
-                f"Preview:\n{output[:2000]}\n</persisted-output>")
+                f"Preview:\n{text[:2000]}\n</persisted-output>")
 
     def tool_result_budget(self, messages: list,
                            max_bytes: int = Configs.TOOL_RESULT_BUDGET) -> list:
@@ -168,9 +174,10 @@ class ContextCompact:
         transcript_dir = Configs.TRANSCRIPT_DIR
         transcript_dir.mkdir(parents=True, exist_ok=True)
         path = transcript_dir / f"transcript_{int(time.time())}.jsonl"
-        with path.open("w") as f:
+        with path.open("w", encoding="utf-8") as f:
             for msg in messages:
-                f.write(json.dumps(msg, default=str) + "\n")
+                f.write(json.dumps(redact_obj(msg), default=str,
+                                   ensure_ascii=False) + "\n")
         return path
 
     '''

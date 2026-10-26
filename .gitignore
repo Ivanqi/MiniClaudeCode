@@ -9,8 +9,14 @@ src/__pycache__
 .env
 old_code
 .scheduled_tasks.json
+.scheduled_tasks.json.lock
 .editorconfig
 skills
 .training_data/
 local_model/__pycache__/
 需求/
+.audit/
+.backups/
+.transcripts/
+.task_outputs/
+.memory/

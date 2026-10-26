@@ -30,6 +30,7 @@ class RecoveryState:
         self.tool_error_count = 0     # 本 turn 工具执行报错次数
         self.last_tool_key = None     # 上一次工具调用 (name, args) 指纹,用于空转检测
         self.same_tool_streak = 0     # 相同工具+参数连续调用次数
+        self.budget_exhausted_reason = ""  # 预算收尾原因(轨迹数据用)
 
 
 def retry_delay(attempt: int) -> float:

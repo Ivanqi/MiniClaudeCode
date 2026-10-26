@@ -1,15 +1,16 @@
 """队友系统:自治队友线程、空闲轮询与 lead 侧团队管理工具。
 
 队友线程通过 MessageBus 与 lead 通信;空闲时轮询收件箱,
-其次扫描可认领的任务。计划审批是真实闸门:
-submit_plan 之后,队友在收到 plan_approval_response 之前
-不再执行任何模型/工具步骤。
+其次扫描可认领的任务。所有工具调用经过统一 ToolDispatcher:
+- 有 worktree:写操作只在 worktree 内,bash cwd 强制到该目录;
+- 无 worktree:文件写拒绝,bash 只能跑只读白名单;
+- 线程异常/超时/生命周期上限都会给 lead 发 status=failed 的 result,
+  并释放或标记失败当前任务,不再留下永远 in_progress 的任务。
 """
 import json
 import re
 import threading
 import time
-from pathlib import Path
 
 from src.ActiveTeammates import ACTIVE_TEAMMATES, ActiveTeammates
 from src.BasicOper import BASIC_OPER, BasicOper
@@ -18,8 +19,11 @@ from src.LlmClient import (assistant_message, make_function_tool, tool_message,
                            user_message)
 from src.MessageBus import BUS, MessageBus
 from src.ProtocolSystem import PROTOCOL, ProtocolState, ProtocolSystem
+from src.SecurityPolicy import validate_agent_name
 from src.TaskSystem import TASK_SYSTEM, TaskSystem
 from src.Terminal import Terminal
+from src.ToolDispatcher import ToolDispatcher
+from src.ToolPolicy import teammate_policy
 
 
 class TeammateSystem:
@@ -33,7 +37,8 @@ class TeammateSystem:
                  protocol: ProtocolSystem = PROTOCOL,
                  tasks: TaskSystem = TASK_SYSTEM,
                  teammates: ActiveTeammates = ACTIVE_TEAMMATES,
-                 basic: BasicOper = BASIC_OPER):
+                 basic: BasicOper = BASIC_OPER,
+                 dispatcher: ToolDispatcher | None = None):
         self.client = client
         self.router = router  # None 表示不路由,直接用 self.client(向后兼容)
         self.bus = bus
@@ -41,58 +46,39 @@ class TeammateSystem:
         self.tasks = tasks
         self.teammates = teammates
         self.basic = basic
+        self.dispatcher = dispatcher or ToolDispatcher(basic=self.basic)
 
     # ── 自治代理:空闲轮询 ──
-    # 扫描任务看板
-    '''
-    必须是 pending、没有 owner、所有 blockedBy 依赖已完成。
-    scan_start 检查依赖任务的状态有依赖不代表不能做，只有被未完成的任务阻塞才不能做。
-    '''
+
     def scan_unclaimed_tasks(self) -> list[dict]:
+        reclaim = getattr(self.tasks, "reclaim_expired", None)
+        if reclaim is not None:
+            try:
+                reclaim()
+            except Exception as exc:
+                Terminal.info("task", f"reclaim failed: {exc}", Terminal.RED)
         unclaimed = []
         for f in sorted(self.tasks.tasks_dir.glob("task_*.json")):
-            task = json.loads(f.read_text())
-            if (task.get("status") == "pending"
-                    and not task.get("owner")
-                    and self.tasks.can_start(task["id"])):
-                unclaimed.append(task)
+            try:
+                task = json.loads(f.read_text())
+                if (task.get("status") == "pending"
+                        and not task.get("owner")
+                        and self.tasks.can_start(task["id"])):
+                    unclaimed.append(task)
+            except (OSError, json.JSONDecodeError, KeyError):
+                continue
         return unclaimed
 
-    '''
-    idle_poll 是队友在无任务时执行的轮询逻辑，用于检查收件箱中的新消息或系统中可认领的新任务，并返回状态指示（"work"、"shutdown" 或 "timeout"）。
-        agent_name：当前队友的名字。
-
-        messages：对话消息列表（用于在发现新消息时插入上下文）。
-
-        name 和 role：队友身份，用于消息构造（但未直接使用，可能用于日志）。
-
-        worktree_context：可选字典，用于在认领带工作树的任务时更新路径。
-    '''
     def idle_poll(self, agent_name: str, messages: list,
                   name: str, role: str,
-                  worktree_context: dict | None = None) -> str:
+                  worktree_context: dict | None = None,
+                  deadline: float | None = None,
+                  claimed: int = 0) -> str:
         """空闲轮询:收件箱消息优先于可认领任务。"""
-        '''
-        轮询次数：总等待时间 = Configs.IDLE_TIMEOUT（例如 60 秒），每次间隔 Configs.IDLE_POLL_INTERVAL（例如 2 秒）。
-
-        收件箱优先：每次醒来先检查收件箱：
-
-        若存在 shutdown_request，立即响应关机并返回 "shutdown"。
-
-        否则，将整个收件箱内容作为一条用户消息加入对话，并返回 "work"（表示有消息需处理）。
-
-        无消息时查找新任务：
-
-        调用 scan_unclaimed_tasks 获取所有待认领且满足依赖条件的任务。
-
-        认领第一个任务（claim_task）：
-
-        若成功，提取工作树信息，更新 worktree_context（若提供），并构造自动认领消息加入对话，返回 "work"。
-
-        超时：若整个循环结束仍未找到工作，返回 "timeout"，主循环将退出线程。
-        '''
         for _ in range(Configs.IDLE_TIMEOUT // Configs.IDLE_POLL_INTERVAL):
             time.sleep(Configs.IDLE_POLL_INTERVAL)
+            if deadline is not None and time.monotonic() >= deadline:
+                return "timeout"
             inbox = self.bus.read_inbox(agent_name)
             if inbox:
                 for msg in inbox:
@@ -102,19 +88,27 @@ class TeammateSystem:
                                       "shutdown_response",
                                       {"request_id": req_id, "approve": True})
                         return "shutdown"
-                messages.append(user_message("<inbox>" + json.dumps(inbox) + "</inbox>"))
+                messages.append(user_message(
+                    "<inbox>" + json.dumps(inbox) + "</inbox>"))
                 return "work"
+            if claimed >= Configs.TEAMMATE_MAX_TASKS:
+                return "timeout"
             unclaimed = self.scan_unclaimed_tasks()
             if unclaimed:
                 task_data = unclaimed[0]
                 result = self.tasks.claim_task(task_data["id"], agent_name)
                 if "Claimed" in result:
                     wt_info = ""
+                    if worktree_context is not None:
+                        worktree_context["path"] = None
                     if task_data.get("worktree"):
                         wt_path = Configs.WORKTREES_DIR / task_data["worktree"]
                         wt_info = f"\nWork directory: {wt_path}"
                         if worktree_context is not None:
                             worktree_context["path"] = str(wt_path)
+                    if worktree_context is not None:
+                        worktree_context["current_task"] = task_data["id"]
+                        worktree_context["claimed"] = claimed + 1
                     messages.append(user_message(
                         f"<auto-claimed>Task {task_data['id']}: "
                         f"{task_data['subject']}{wt_info}</auto-claimed>"))
@@ -122,88 +116,114 @@ class TeammateSystem:
         return "timeout"
 
     # ── 队友线程 ──
-   
+
     def spawn(self, name: str, role: str, prompt: str) -> str:
+        err = validate_agent_name(name)
+        if err:
+            return f"Error: {err}"
+        if name == "lead":
+            return "Error: agent name 'lead' is reserved"
         if self.teammates.contains(name):
             return f"Teammate '{name}' already exists"
+        if len(self.teammates.names()) >= Configs.MAX_TEAMMATES:
+            return (f"Error: max active teammates reached "
+                    f"({Configs.MAX_TEAMMATES})")
         self.teammates.add(name)
-        threading.Thread(target=self._run_teammate, args=(name, role, prompt),
-                         daemon=True).start()
+        try:
+            threading.Thread(target=self._run_teammate,
+                             args=(name, role, prompt), daemon=True).start()
+        except Exception as exc:
+            self.teammates.remove(name)
+            return f"Error: failed to start teammate: {exc}"
         return f"Teammate '{name}' spawned as {role}"
 
-    # _run_teammate 方法是自治队友线程的核心
-    # 它实现了一个具有自主工作循环、计划审批闸门和任务认领能力的智能代理
+    @staticmethod
+    def _last_text(messages: list) -> str:
+        for msg in reversed(messages):
+            if msg.get("role") == "assistant":
+                text = msg.get("content")
+                if isinstance(text, str) and text.strip():
+                    return text.strip()
+        return ""
+
+    def _release_task(self, task_id: str, failed: bool, error: str = ""):
+        """释放/标记失败当前任务;Phase 6 提供带锁的实现。"""
+        if not task_id:
+            return
+        if failed:
+            fn = getattr(self.tasks, "fail_task", None)
+            if fn is not None:
+                try:
+                    fn(task_id, error)
+                    return
+                except Exception as exc:
+                    Terminal.info("task", f"fail_task failed: {exc}", Terminal.RED)
+        else:
+            fn = getattr(self.tasks, "release_task", None)
+            if fn is not None:
+                try:
+                    fn(task_id)
+                    return
+                except Exception as exc:
+                    Terminal.info("task", f"release_task failed: {exc}",
+                                  Terminal.RED)
+        # 兼容旧 TaskSystem:至少不要让任务永远 in_progress
+        try:
+            task = self.tasks.load_task(task_id)
+            task.status = "pending"
+            task.owner = None
+            self.tasks.save_task(task)
+        except Exception:
+            pass
+
     def _run_teammate(self, name: str, role: str, prompt: str):
-        '''
-        protocol_ctx：记录当前正在等待审批的计划请求ID（waiting_plan），非空时队友不会执行任何模型/工具步骤，实现“审批闸门”。
-
-        system：系统提示，固定队友身份。
-
-        wt_ctx：保存当前工作树路径（若有），使得后续文件操作自动在该目录下进行。
-        '''
         protocol_ctx = {"waiting_plan": None}
         system = (f"You are '{name}', a {role}. "
                   f"Use tools to complete tasks. "
-                  f"If a task has a worktree, work in that directory.")
-        wt_ctx = {"path": None}
+                  f"If a task has a worktree, work in that directory. "
+                  "You cannot spawn other agents.")
+        wt_ctx = {"path": None, "current_task": None, "claimed": 0}
+        deadline = time.monotonic() + Configs.TEAMMATE_MAX_LIFETIME_SECONDS
+        api_calls = 0
+        status = "ok"
+        error = ""
+        messages = [user_message(prompt)]
+        should_shutdown = False
 
-        # ── 工具包装:认领带 worktree 的任务后,文件工具透明地改在该目录内执行 ──
-        '''
-        工作树辅助函数
-            _wt_cwd() 返回当前工作树路径（若有），否则返回 None。
-
-            三个文件/命令执行函数均将 cwd 参数传递给底层 BasicOper，确保操作在工作树目录内进行。
-        '''
-        def _wt_cwd():
-            p = wt_ctx["path"]
-            return Path(p) if p else None
-
-        def _run_bash(command: str) -> str:
-            return self.basic.run_bash(command, cwd=_wt_cwd())
-
-        def _run_read(path: str) -> str:
-            return self.basic.run_read(path, cwd=_wt_cwd())
-
-        def _run_write(path: str, content: str) -> str:
-            return self.basic.run_write(path, content, cwd=_wt_cwd())
-
-        '''
-        任务相关辅助函数
-            这三个函数实现了队友对任务的查看、认领和完成能力。
-
-            认领任务时，若任务关联了工作树，则自动设置 wt_ctx["path"]，使后续操作在该工作树目录内执行。
-
-            完成任务后，清空工作树路径。
-        '''
         def _run_list_tasks():
-            tasks = self.tasks.list_tasks()
-            if not tasks:
-                return "No tasks."
-            return "\n".join(
-                f"  {t.id}: {t.subject} [{t.status}]"
-                + (f" (wt:{t.worktree})" if t.worktree else "")
-                for t in tasks)
+            try:
+                return self.tasks.run_list_tasks()
+            except Exception as exc:
+                return f"Error: {exc}"
 
         def _run_claim_task(task_id: str):
-            result = self.tasks.claim_task(task_id, owner=name)
+            if wt_ctx["current_task"]:
+                return "Error: complete the current task first"
+            if wt_ctx["claimed"] >= Configs.TEAMMATE_MAX_TASKS:
+                return "Error: teammate task limit reached"
+            try:
+                result = self.tasks.claim_task(task_id, owner=name)
+            except FileNotFoundError:
+                return f"Error: task {task_id} not found"
             if "Claimed" in result:
                 task = self.tasks.load_task(task_id)
                 wt_ctx["path"] = (str(Configs.WORKTREES_DIR / task.worktree)
                                   if task.worktree else None)
+                wt_ctx["current_task"] = task_id
+                wt_ctx["claimed"] += 1
             return result
 
         def _run_complete_task(task_id: str):
-            result = self.tasks.complete_task(task_id)
-            wt_ctx["path"] = None
+            try:
+                result = self.tasks.complete_task(task_id)
+            except FileNotFoundError:
+                return f"Error: task {task_id} not found"
+            if result.startswith("Completed") \
+                    and wt_ctx["current_task"] == task_id:
+                wt_ctx["path"] = None
+                wt_ctx["current_task"] = None
             return result
 
-        '''
-        收件箱消息处理函数
-            处理两类特殊消息：
-                关机请求：回复确认，并返回 True 表示需要退出线程。
-
-                计划审批回复：若匹配当前等待的请求ID，则清除等待标记，并将审批结果作为用户消息加入对话历史，以便模型知悉。
-        '''
         def handle_inbox_message(msg: dict, messages: list) -> bool:
             """处理收件箱消息;返回 True 表示收到关机指令。"""
             msg_type = msg.get("type", "message")
@@ -223,18 +243,20 @@ class TeammateSystem:
                     else f"[Plan rejected] {msg['content']}"))
             return False
 
-        # ── 队友工具集(不经过主循环的权限钩子,保证自主性) ──
-
+        # ── 队友工具集(仍经过统一 dispatcher 的策略与沙箱) ──
         sub_tools = [
             make_function_tool("bash", "Run a shell command.",
                 {"type": "object",
-                 "properties": {"command": {"type": "string"}},
+                 "properties": {"command": {"type": "string"},
+                                "timeout": {"type": "integer", "minimum": 1,
+                                            "maximum": Configs.BASH_TIMEOUT_MAX}},
                  "required": ["command"]}),
             make_function_tool("read_file", "Read file.",
                 {"type": "object",
                  "properties": {"path": {"type": "string"},
-                                "limit": {"type": "integer"},
-                                "offset": {"type": "integer"}},
+                                "limit": {"type": "integer", "minimum": 1,
+                                          "maximum": Configs.READ_FILE_MAX_LINES},
+                                "offset": {"type": "integer", "minimum": 0}},
                  "required": ["path"]}),
             make_function_tool("write_file", "Write file.",
                 {"type": "object",
@@ -262,136 +284,151 @@ class TeammateSystem:
                  "required": ["task_id"]}),
         ]
         sub_handlers = {
-            "bash": _run_bash, "read_file": _run_read,
-            "write_file": _run_write,
-            "send_message": lambda to, content: (self.bus.send(name, to, content),
-                                                 "Sent")[1],
+            "bash": self.basic.run_bash, "read_file": self.basic.run_read,
+            "write_file": self.basic.run_write,
+            "send_message": lambda to, content: (
+                self.bus.send(name, to, content), "Sent")[1],
+            "submit_plan": lambda plan: self.submit_plan(name, plan),
             "list_tasks": _run_list_tasks,
             "claim_task": _run_claim_task,
             "complete_task": _run_complete_task,
         }
 
-        messages = [user_message(prompt)]
-        while True:
-            '''
-            初始消息为 prompt。
-            若消息数量不足 3，注入身份提醒，确保模型始终清楚自身角色（循环中可能因压缩导致身份信息丢失）。
-            '''
-            if len(messages) <= 3:
-                messages.insert(0, user_message(
-                    f"<identity>You are '{name}', role: {role}. "
-                    f"Continue your work.</identity>"))
+        try:
+            while True:
+                if time.monotonic() >= deadline:
+                    status, error = "failed", "teammate lifetime exceeded"
+                    break
+                if len(messages) <= 3:
+                    messages.insert(0, user_message(
+                        f"<identity>You are '{name}', role: {role}. "
+                        f"Continue your work.</identity>"))
 
-            '''
-            每次内层循环首先读取收件箱，处理协议消息（关机、计划审批）。
-
-            若处于 waiting_plan 状态，则不断轮询（等待审批回复），不执行任何模型或工具调用，真正实现“审批闸门”。
-
-            若非等待状态，则将有收件箱中的普通消息（非协议）作为用户消息注入对话。
-            '''
-            should_shutdown = False
-            for _ in range(self.INNER_ROUND_LIMIT): # 最多10轮
-                inbox = self.bus.read_inbox(name)
-                for msg in inbox:
-                    if handle_inbox_message(msg, messages):
+                should_shutdown = False
+                for _ in range(self.INNER_ROUND_LIMIT):
+                    if time.monotonic() >= deadline:
+                        status = "failed"
+                        error = "teammate lifetime exceeded"
                         should_shutdown = True
                         break
+                    current_task = wt_ctx["current_task"]
+                    if current_task:
+                        heartbeat = getattr(self.tasks, "heartbeat", None)
+                        if heartbeat is not None:
+                            try:
+                                heartbeat(current_task)
+                            except Exception:
+                                pass
+                    inbox = self.bus.read_inbox(name)
+                    for msg in inbox:
+                        if handle_inbox_message(msg, messages):
+                            should_shutdown = True
+                            break
+                    if should_shutdown:
+                        break
+                    if protocol_ctx["waiting_plan"]:
+                        time.sleep(Configs.IDLE_POLL_INTERVAL)
+                        continue
+                    if inbox:
+                        non_protocol = [m for m in inbox
+                                        if m.get("type") == "message"]
+                        if non_protocol:
+                            messages.append(user_message(
+                                "<inbox>" + json.dumps(non_protocol) + "</inbox>"))
+                    if api_calls >= Configs.TEAMMATE_MAX_API_CALLS:
+                        status = "failed"
+                        error = "teammate API call limit exceeded"
+                        should_shutdown = True
+                        break
+
+                    try:
+                        if self.router is not None:
+                            # 长时自治队友默认走 API(caller=teammate 恒返回 api)
+                            decision = self.router.route(
+                                messages[-self.MESSAGE_WINDOW:],
+                                caller="teammate")
+                            client, model, max_tokens = self.router.apply(
+                                decision, Configs.TEAMMATE_MAX_TOKENS)
+                        else:
+                            client, model = self.client, None
+                            max_tokens = Configs.TEAMMATE_MAX_TOKENS
+                        response = client.create(
+                            messages[-self.MESSAGE_WINDOW:], system=system,
+                            tools=sub_tools, max_tokens=max_tokens, model=model)
+                    except Exception as exc:
+                        status = "failed"
+                        error = f"{type(exc).__name__}: {exc}"
+                        should_shutdown = True
+                        break
+                    api_calls += 1
+                    if response.has_parse_error:
+                        response.tool_calls = [c for c in response.tool_calls
+                                               if not c.parse_error]
+                        Terminal.info("parse-error",
+                                      "teammate dropped malformed call",
+                                      Terminal.RED)
+                    messages.append(assistant_message(response))
+                    if not response.has_tool_calls:
+                        break
+                    results = []
+                    for call in response.tool_calls:
+                        policy = teammate_policy(wt_ctx["path"])
+                        auth = self.dispatcher.authorize(
+                            call, policy, sub_handlers, allow_prompt=True,
+                            agent=policy.role)
+                        if not auth.allowed:
+                            output = (auth.denial.content
+                                      if auth.denial else "Denied")
+                        else:
+                            output = self.dispatcher.execute(
+                                call, policy, sub_handlers,
+                                authorization=auth).content
+                            if call.name == "submit_plan":
+                                match = re.search(r"\((req_\d+)\)", output)
+                                protocol_ctx["waiting_plan"] = (
+                                    match.group(1) if match else output)
+                        results.append(tool_message(call.id, output))
+                        if protocol_ctx["waiting_plan"]:
+                            # 同一条回复中审批之后的工具调用一律忽略
+                            break
+                    messages.extend(results)
+                    current = wt_ctx["current_task"]
+                    if current:
+                        heartbeat = getattr(self.tasks, "heartbeat", None)
+                        if heartbeat is not None:
+                            try:
+                                heartbeat(current)
+                            except Exception:
+                                pass
+                    if protocol_ctx["waiting_plan"]:
+                        break
+
                 if should_shutdown:
                     break
                 if protocol_ctx["waiting_plan"]:
-                    # 审批闸门关闭期间只轮询协议回复,不让模型继续推进任务。
-                    time.sleep(Configs.IDLE_POLL_INTERVAL)
                     continue
-                if inbox:
-                    non_protocol = [m for m in inbox if m.get("type") == "message"]
-                    if non_protocol:
-                        messages.append(user_message(
-                            "<inbox>" + json.dumps(non_protocol) + "</inbox>"))
-                '''
-                调用 LLM，传入最近的 MESSAGE_WINDOW 条消息、系统提示、工具定义。
-
-                将模型回复加入 messages。
-
-                若模型未请求工具调用，则结束内层循环（进入空闲轮询）。
-
-                遍历工具调用：
-
-                    若为 submit_plan，调用 self.submit_plan，从返回值中提取请求ID，并设置 waiting_plan（即进入审批闸门）。
-
-                    其他工具调用，通过 handlers 执行，并将结果以 tool_message 加入。
-
-                    若 waiting_plan 被设置（即刚提交了计划），则 忽略后续的工具调用（因为模型可能在同一回复中请求多个工具，但提交计划后应立即暂停，等待审批），并立即跳出内层循环。
-                '''
-                try:
-                    if self.router is not None:
-                        # 长时自治队友默认走 API(caller=teammate 恒返回 api)
-                        decision = self.router.route(
-                            messages[-self.MESSAGE_WINDOW:], caller="teammate")
-                        client, model, max_tokens = self.router.apply(
-                            decision, Configs.TEAMMATE_MAX_TOKENS)
-                    else:
-                        client, model, max_tokens = self.client, None, Configs.TEAMMATE_MAX_TOKENS
-                    response = client.create(
-                        messages[-self.MESSAGE_WINDOW:], system=system,
-                        tools=sub_tools, max_tokens=max_tokens, model=model)
-                except Exception:
+                idle_result = self.idle_poll(
+                    name, messages, name, role, wt_ctx,
+                    deadline=deadline, claimed=wt_ctx["claimed"])
+                if idle_result in ("shutdown", "timeout"):
                     break
-                if response.has_parse_error:
-                    response.tool_calls = [c for c in response.tool_calls
-                                           if not c.parse_error]
-                    Terminal.info("parse-error",
-                                  "teammate dropped malformed call", Terminal.RED)
-                messages.append(assistant_message(response))
-                if not response.has_tool_calls:
-                    break
-                results = []
-                for call in response.tool_calls:
-                    if call.name == "submit_plan":
-                        output = self.submit_plan(name, call.arguments.get("plan", ""))
-                        match = re.search(r"\((req_\d+)\)", output)
-                        protocol_ctx["waiting_plan"] = (
-                            match.group(1) if match else output)
-                    else:
-                        handler = sub_handlers.get(call.name)
-                        output = self.basic.call_tool_handler(handler, call.arguments, call.name)
-                    results.append(tool_message(call.id, str(output)))
-                    if protocol_ctx["waiting_plan"]:
-                        # 同一条回复中审批之后的工具调用一律忽略,等审批后再执行。
-                        break
-                messages.extend(results)
-                if protocol_ctx["waiting_plan"]:
-                    break
-            '''
-            若收到关机请求则退出。
-
-            若正在等待审批，则 continue 回到外层循环顶部，跳过空闲轮询（因为审批闸门开启时，队友不应主动扫任务）。
-
-            否则，调用 idle_poll 进行空闲轮询（扫描收件箱、认领未分配任务）。若返回 shutdown 或 timeout，则退出外层循环。
-            '''
-            if should_shutdown:
-                break
-            if protocol_ctx["waiting_plan"]:
-                continue
-            idle_result = self.idle_poll(name, messages, name, role, wt_ctx)
-            if idle_result in ("shutdown", "timeout"):
-                break
-
-        '''
-        从最后一条助手消息中提取非空文本作为最终总结。
-
-        向 lead 发送结果消息（类型为 "result"）。
-
-        从 ActiveTeammates 中移除该队友（释放资源）。
-        '''
-        summary = "Done."
-        for msg in reversed(messages):
-            if msg.get("role") == "assistant":
-                text = msg.get("content")
-                if isinstance(text, str) and text.strip():
-                    summary = text.strip()
-                    break
-        self.bus.send(name, "lead", summary, "result")
-        self.teammates.remove(name)
+        except Exception as exc:
+            status = "failed"
+            error = f"{type(exc).__name__}: {exc}"
+        finally:
+            summary = self._last_text(messages)
+            current = wt_ctx["current_task"]
+            if current:
+                self._release_task(current, failed=status != "ok", error=error)
+            if not summary:
+                summary = "Done." if status == "ok" else f"Failed: {error}"
+            try:
+                self.bus.send(name, "lead", summary, "result",
+                              {"status": status, "error": error,
+                               "task_id": current or ""})
+            except Exception:
+                pass
+            self.teammates.remove(name)
 
     # ── 队友侧:提交计划 ──
 
