@@ -18,11 +18,12 @@ from src.ApprovalGate import ApprovalGate, ApprovalRequest
 from src.AuditLog import AuditLog
 from src.BasicOper import BASIC_OPER, BasicOper
 from src.FileLock import ensure_private_dir, file_lock
+from src.LoopGuard import ToolCircuitBreaker
 from src.Sandbox import Sandbox, SandboxUnavailable
 from src.SecurityPolicy import (CONFIRM, DENY, analyze_bash, child_env,
                                 classify_path, redact)
 from src.ToolPolicy import (BASH_DENY, BASH_READ_ONLY, ToolPolicy, ToolResult,
-                            canonical_args)
+                            canonical_args, infer_error_code)
 from src.Terminal import Terminal
 
 BUILTIN_FILE_TOOLS = frozenset({"bash", "read_file", "write_file",
@@ -53,12 +54,16 @@ class ToolDispatcher:
     def __init__(self, basic: BasicOper | None = None, hooks=None,
                  audit: AuditLog | None = None,
                  approval: ApprovalGate | None = None,
-                 sandbox: Sandbox | None = None):
+                 sandbox: Sandbox | None = None,
+                 circuit_breaker: ToolCircuitBreaker | None = None):
         self.basic = basic or BASIC_OPER
         self.hooks = hooks
         self.audit = audit or AuditLog()
         self.approval = approval or ApprovalGate()
         self.sandbox = sandbox or Sandbox()
+        # 默认不创建 breaker:直接构造 dispatcher 的测试保持原语义;
+        # AgentLoop 会注入共享 breaker,覆盖子代理/队友/后台。
+        self.circuit_breaker = circuit_breaker
 
     # ── 授权 ──
 
@@ -81,6 +86,19 @@ class ToolDispatcher:
             allowed=False, denial=result, reason=reason,
             call_id="")
 
+    def _circuit_open(self, tool: str, reason: str, agent: str,
+                      arguments: dict, turn_id: str = "",
+                      bg_id: str = "") -> Authorization:
+        """熔断不是策略拒绝:denied=False,error_code 独立。"""
+        result = ToolResult.failure(reason, error_code="circuit_open")
+        self.audit.tool_decision(
+            agent=agent, tool=tool, arguments=arguments,
+            decision="circuit_open", reason=reason,
+            turn_id=turn_id, bg_id=bg_id)
+        return Authorization(
+            tool=tool, fingerprint=self.fingerprint(tool, arguments),
+            allowed=False, denial=result, reason=reason, call_id="")
+
     def authorize(self, call, policy: ToolPolicy, handlers: dict,
                   metadata: dict | None = None, allow_prompt: bool = True,
                   turn_id: str = "", bg_id: str = "",
@@ -98,6 +116,12 @@ class ToolDispatcher:
             return self._deny(
                 name, f"unknown tool '{name}'", agent, arguments,
                 turn_id, bg_id, content=f"Unknown: {name}")
+        if self.circuit_breaker is not None:
+            breaker_ok, breaker_reason, _ = self.circuit_breaker.allow(name)
+            if not breaker_ok:
+                self.circuit_breaker.record_blocked(name)
+                return self._circuit_open(
+                    name, breaker_reason, agent, arguments, turn_id, bg_id)
 
         needs_confirm = False
         confirm_reasons = []
@@ -225,6 +249,17 @@ class ToolDispatcher:
                 agent=policy.role, tool=name, result=result, duration_ms=0,
                 turn_id=turn_id, bg_id=bg_id, pre_authorized=True)
             return result
+        if self.circuit_breaker is not None:
+            breaker_ok, breaker_reason = self.circuit_breaker.acquire(name)
+            if not breaker_ok:
+                self.circuit_breaker.record_blocked(name)
+                result = ToolResult.failure(
+                    breaker_reason, error_code="circuit_open")
+                self.audit.tool_result(
+                    agent=policy.role, tool=name, result=result,
+                    duration_ms=0, turn_id=turn_id, bg_id=bg_id,
+                    pre_authorized=was_pre_authorized)
+                return result
 
         started = time.perf_counter()
         try:
@@ -234,10 +269,15 @@ class ToolDispatcher:
             Terminal.info("tool-error", f"{name}: {type(exc).__name__}: "
                           f"{redact(str(exc))}", Terminal.RED)
             result = ToolResult.failure(
-                f"Error: {type(exc).__name__}: {exc}", error=str(exc))
+                f"Error: {type(exc).__name__}: {exc}", error=str(exc),
+                error_code="exception")
         result.content = redact(result.content)
         if result.error:
             result.error = redact(result.error)
+        if not result.ok and not result.error_code:
+            result.error_code = infer_error_code(name, result)
+        if self.circuit_breaker is not None:
+            self.circuit_breaker.record(name, result)
         duration_ms = int((time.perf_counter() - started) * 1000)
 
         if self.hooks is not None:
@@ -318,15 +358,17 @@ class ToolDispatcher:
 
         handler = handlers.get(name)
         if handler is None:
-            return ToolResult.failure(f"Unknown: {name}",
-                                      error=f"unknown tool '{name}'")
+            return ToolResult.failure(
+                f"Unknown: {name}", error=f"unknown tool '{name}'",
+                error_code="unknown_tool")
         try:
             raw = handler(**arguments)
         except Exception as exc:
             Terminal.info("tool-error", f"{name}: {type(exc).__name__}: "
                           f"{redact(str(exc))}", Terminal.RED)
             return ToolResult.failure(
-                f"Error: {type(exc).__name__}: {exc}", error=str(exc))
+                f"Error: {type(exc).__name__}: {exc}", error=str(exc),
+                error_code="exception")
         return self._normalize_result(raw)
 
     @staticmethod
@@ -362,7 +404,8 @@ class ToolDispatcher:
                 command, policy.root(), writable,
                 network=authorization.needs_network)
         except SandboxUnavailable as exc:
-            return ToolResult.failure(f"Error: {exc}")
+            return ToolResult.failure(
+                f"Error: {exc}", error_code="sandbox_unavailable")
         text, code, truncated = self.basic.run_bash_process(
             command, cwd=policy.root(),
             timeout=arguments.get("timeout"), env=child_env(),
@@ -370,10 +413,20 @@ class ToolDispatcher:
         if code not in (0, None) and not text.startswith("Error:"):
             text = (f"Exit code {code}" if text == "(no output)"
                     else f"Exit code {code}\n{text}")
+        if code == -1:
+            error_code = ("timeout" if "timeout" in text.lower()
+                          else "exception")
+        elif code == -2:
+            error_code = "cancelled"
+        elif code != 0:
+            error_code = "bash_exit"
+        else:
+            error_code = ""
         return ToolResult(
             content=text, ok=code == 0, exit_code=code,
             truncated=truncated,
-            error=None if code == 0 else text)
+            error=None if code == 0 else text,
+            error_code=error_code)
 
     def _run_write(self, name: str, call, arguments: dict,
                    policy: ToolPolicy) -> ToolResult:

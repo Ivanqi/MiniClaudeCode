@@ -14,7 +14,7 @@ from src.Configs import Configs
 from src.LlmClient import make_function_tool
 from src.SecurityPolicy import redact
 from src.Terminal import Terminal
-from src.ToolPolicy import ToolResult
+from src.ToolPolicy import ToolResult, infer_error_code
 
 _ACTIVE_STATES = {"queued", "running"}
 _FINISHED_STATES = {"completed", "failed", "cancelled", "timed_out"}
@@ -81,6 +81,7 @@ class BackgroundTaskSystem:
                 "started_at": None,
                 "duration_ms": None,
                 "exit_code": None,
+                "error_code": None,
                 "output": "",
                 "error": None,
                 "notified": False,
@@ -117,6 +118,10 @@ class BackgroundTaskSystem:
                         return  # cancel() 已经写入终态
                     task["output"] = redact(result.content)
                     task["exit_code"] = result.exit_code
+                    task["error_code"] = (result.error_code
+                                          or ("" if result.ok else
+                                              infer_error_code(
+                                                  tool_call.name, result)))
                     if task["status"] == "timed_out":
                         return  # _run_with_timeout 已写入 timed_out
                     task["error"] = redact(result.error) if result.error else None
@@ -130,9 +135,11 @@ class BackgroundTaskSystem:
                 if task is not None and task["status"] not in _FINISHED_STATES:
                     task["status"] = "failed"
                     task["error"] = f"{type(exc).__name__}: {exc}"
+                    task["error_code"] = "exception"
                     task["duration_ms"] = int(
                         (time.monotonic() - (task["started_at"] or
                                              task["created_at"])) * 1000)
+            self._note_breaker(dispatcher, tool_call.name, "exception")
 
     def _run_with_timeout(self, bg_id, tool_call, handlers, dispatcher,
                           policy, authorization, turn_id) -> ToolResult:
@@ -150,7 +157,8 @@ class BackgroundTaskSystem:
                 outcome.put(result)
             except Exception as exc:  # dispatcher 内部已兜底,这里再防一层
                 outcome.put(ToolResult.failure(
-                    f"Error: {type(exc).__name__}: {exc}", error=str(exc)))
+                    f"Error: {type(exc).__name__}: {exc}", error=str(exc),
+                    error_code="exception"))
 
         thread = threading.Thread(target=invoke, daemon=True)
         thread.start()
@@ -163,24 +171,35 @@ class BackgroundTaskSystem:
                 if task is not None and task["status"] != "cancelled":
                     task["status"] = "timed_out"
                     task["error"] = f"timeout after {self.timeout}s"
+                    task["error_code"] = "timeout"
                     task["duration_ms"] = int(
                         (time.monotonic() - (task["started_at"] or
                                              time.monotonic())) * 1000)
+            self._note_breaker(dispatcher, tool_call.name, "timeout")
             return ToolResult.failure(
-                f"Error: Timeout ({self.timeout}s)", error="timeout")
+                f"Error: Timeout ({self.timeout}s)", error="timeout",
+                error_code="timeout")
 
     @staticmethod
     def _legacy_execute(tool_call, handlers: dict) -> ToolResult:
         handler = (handlers or {}).get(tool_call.name)
         if handler is None:
-            return ToolResult.failure(f"Unknown: {tool_call.name}",
-                                      error="unknown tool")
+            return ToolResult.failure(
+                f"Unknown: {tool_call.name}", error="unknown tool",
+                error_code="unknown_tool")
         try:
             raw = handler(**(tool_call.arguments or {}))
         except Exception as exc:
             return ToolResult.failure(
-                f"Error: {type(exc).__name__}: {exc}", error=str(exc))
+                f"Error: {type(exc).__name__}: {exc}", error=str(exc),
+                error_code="exception")
         return ToolResult(content=str(raw))
+
+    @staticmethod
+    def _note_breaker(dispatcher, tool: str, error_code: str):
+        breaker = getattr(dispatcher, "circuit_breaker", None)
+        if breaker is not None:
+            breaker.record_failure(tool, error_code)
 
     # ── 查询与取消 ──
 
@@ -203,6 +222,9 @@ class BackgroundTaskSystem:
                 ]
                 if task["exit_code"] is not None:
                     lines.append(f"  <exit_code>{task['exit_code']}</exit_code>")
+                if task.get("error_code"):
+                    lines.append(
+                        f"  <error_code>{task['error_code']}</error_code>")
                 if task["duration_ms"] is not None:
                     lines.append(
                         f"  <duration_ms>{task['duration_ms']}</duration_ms>")
@@ -225,6 +247,8 @@ class BackgroundTaskSystem:
                  f"  command: {snapshot['command']}"]
         if snapshot["exit_code"] is not None:
             lines.append(f"  exit_code: {snapshot['exit_code']}")
+        if snapshot.get("error_code"):
+            lines.append(f"  error_code: {snapshot['error_code']}")
         if snapshot["duration_ms"] is not None:
             lines.append(f"  duration_ms: {snapshot['duration_ms']}")
         if snapshot["error"]:
@@ -244,6 +268,7 @@ class BackgroundTaskSystem:
             task["cancel_event"].set()
             task["status"] = "cancelled"
             task["error"] = "cancelled by request"
+            task["error_code"] = "cancelled"
             task["duration_ms"] = int(
                 (time.monotonic() - (task["started_at"] or
                                      task["created_at"])) * 1000)

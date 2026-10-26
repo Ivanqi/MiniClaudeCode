@@ -31,6 +31,16 @@ class RecoveryState:
         self.last_tool_key = None     # 上一次工具调用 (name, args) 指纹,用于空转检测
         self.same_tool_streak = 0     # 相同工具+参数连续调用次数
         self.budget_exhausted_reason = ""  # 预算收尾原因(轨迹数据用)
+        # ── LoopGuard / 可观测性(只增字段,保持旧测试兼容) ──
+        self.turn_id = ""
+        self.caller = "main"
+        self.budget_snapshot: dict = {}
+        self.loop_signals: list[dict] = []
+        self.loop_signal_counts: dict[str, int] = {}
+        self.failed_attempts: list[dict] = []
+        self.tool_events: list[dict] = []
+        self.stop_reason = ""
+        self.loop_stop_reason = ""
 
 
 def retry_delay(attempt: int) -> float:

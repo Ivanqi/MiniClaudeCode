@@ -101,6 +101,19 @@ class TestTurnBudget(unittest.TestCase):
         budget.started_at -= 2
         self.assertIn("wall", budget.exhausted_reason())
 
+    def test_runtime_snapshot_exposes_remaining(self):
+        budget = TurnBudget(max_rounds=3, max_tool_calls=5,
+                            max_wall_s=10, max_total_tokens=100)
+        budget.record_round()
+        budget.reserve_tool_call()
+        budget.record_usage({"total_tokens": 30})
+        snapshot = budget.runtime_snapshot()
+        self.assertEqual(snapshot["rounds"]["remaining"], 2)
+        self.assertEqual(snapshot["tool_calls"]["remaining"], 4)
+        self.assertEqual(snapshot["tokens"]["remaining"], 70)
+        self.assertEqual(snapshot["wall_s"]["max"], 10)
+        self.assertIsNotNone(snapshot["wall_s"]["remaining"])
+
 
 class TestToolResult(unittest.TestCase):
     def test_render_and_denied(self):

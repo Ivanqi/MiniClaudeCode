@@ -331,6 +331,96 @@ class TestPlanExecutor(unittest.TestCase):
         self.assertEqual(runner.calls, [])
         self.assertIn("approval denied", result["error"])
 
+    # ── LoopGuard / plan_loop ──
+
+    @staticmethod
+    def loop_stopped(content="loop stopped", tokens=5):
+        return {
+            "status": "loop_stopped",
+            "content": content,
+            "closing_reason": "loop stopped: exact_repeat",
+            "budget": {"total_tokens": tokens},
+            "loop_signals": [{"kind": "exact_repeat", "severity": "stop"}],
+        }
+
+    def test_loop_stopped_replans_once_then_plan_loop(self):
+        plan = make_plan([make_step("s1")])
+        revised = make_plan([make_step("r1")], revision=2)
+        planner = FakePlanner([revised])
+        runner = FakeRunner([
+            self.loop_stopped("stuck"),
+            self.loop_stopped("still stuck"),
+        ])
+        result = self.executor(planner, runner).execute(plan)
+
+        self.assertEqual(result["status"], "failed")
+        self.assertEqual(len(planner.replan_calls), 1)
+        self.assertEqual(len(runner.calls), 2)
+        current = self.store.load("plan_test")
+        self.assertEqual(current.status, "failed")
+        self.assertEqual(current.signals["loop"]["kind"], "plan_loop")
+
+    def test_same_failure_signature_detected_across_revisions(self):
+        plan = make_plan([make_step("s1")])
+        revised = make_plan([make_step("s1")], revision=2)
+        planner = FakePlanner([revised])
+        runner = FakeRunner([
+            {"status": "error", "error": "boom", "budget": {}},
+            {"status": "error", "error": "boom", "budget": {}},
+        ])
+        result = self.executor(planner, runner).execute(plan)
+
+        self.assertEqual(result["status"], "failed")
+        self.assertEqual(len(planner.replan_calls), 1)
+        current = self.store.load("plan_test")
+        reason = current.signals["loop"]["evidence"]["reason"]
+        self.assertIn("same failure repeated", reason)
+
+    def test_replan_with_completed_steps_is_not_zero_progress_loop(self):
+        plan = make_plan([
+            make_step("s1", status="completed"),
+            make_step("s2", ["s1"]),
+        ])
+        revised = make_plan([make_step("r1")], revision=2)
+        planner = FakePlanner([revised])
+        runner = FakeRunner([
+            {"status": "error", "error": "s2 boom", "budget": {}},
+            {"status": "error", "error": "r1 boom", "budget": {}},
+        ])
+        result = self.executor(planner, runner).execute(plan)
+
+        self.assertEqual(result["status"], "failed")
+        self.assertEqual(len(planner.replan_calls), 1)
+        current = self.store.load("plan_test")
+        self.assertNotIn("loop", current.signals)
+
+    def test_loop_classification_keeps_reason(self):
+        executor = self.executor()
+        success, category, outcome, ev, artifacts, meta = \
+            executor._classify_step(self.loop_stopped("summary"))
+        self.assertFalse(success)
+        self.assertEqual(category, "loop")
+        self.assertIn("exact_repeat", outcome)
+        self.assertEqual(meta["runtime_status"], "loop_stopped")
+        self.assertIn("loop stopped", meta["loop_reason"])
+
+    def test_step_prompt_contains_progress_budget_and_failures(self):
+        plan = make_plan([make_step("s1"), make_step("s2", ["s1"])])
+        plan.signals = {"failures": [{
+            "revision": 1, "step_id": "s0", "category": "runtime",
+            "error_hash": "x", "error_excerpt": "boom",
+        }]}
+        runner = FakeRunner([ok("one"), ok("two")])
+        result = self.executor(FakePlanner(), runner).execute(plan)
+        self.assertEqual(result["status"], "completed")
+        prompt = runner.calls[0]["prompt"]
+        self.assertIn("Plan progress: 0/2", prompt)
+        self.assertIn("attempt 1", prompt)
+        self.assertIn("Plan budget:", prompt)
+        self.assertIn("Previous failed attempts", prompt)
+        self.assertIn("boom", prompt)
+        self.assertLess(len(prompt), 4500)
+
     # ── replan ──
 
     def test_failure_replans_once_then_stops(self):

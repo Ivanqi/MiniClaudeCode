@@ -96,6 +96,7 @@ class AuditLog:
             "tool_result", agent=agent, tool=tool,
             ok=bool(getattr(result, "ok", True)),
             denied=bool(getattr(result, "denied", False)),
+            error_code=str(getattr(result, "error_code", "") or ""),
             exit_code=getattr(result, "exit_code", None),
             truncated=bool(getattr(result, "truncated", False)),
             duration_ms=duration_ms,

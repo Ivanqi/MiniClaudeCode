@@ -13,7 +13,7 @@ _SYNTHETIC_PREFIXES = (
     "<reminder>", "<inbox>", "<task_notification>", "<auto-claimed>",
     "<identity>", "<memory", "[Scheduled]", "[Inbox]", "[Compacted",
     "[Reactive compact", "[Budget", "[Error", "[Plan", "[system]",
-    "[Background",
+    "[Background", "[LoopGuard]", "[Loop stopped",
 )
 
 

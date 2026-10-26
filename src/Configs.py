@@ -44,9 +44,68 @@ class Configs:
     LOCAL_MAX_TOKENS = 1024  # 本地调用的 max_tokens 上限:失败要便宜
     HEALTH_CHECK_TTL = 30  # 本地服务健康检查缓存秒数
     HEALTH_CHECK_TIMEOUT = 3.0  # 健康探测超时秒数
-    MAX_PARSE_ERRORS_BEFORE_ESCALATE = 2  # 工具参数解析失败 N 次后升级 API
-    MAX_IDENTICAL_TOOL_CALLS = 3  # 同一工具+参数连续调用 N 次视为空转
-    MAX_TOOL_ERRORS_BEFORE_ESCALATE = 2  # 工具执行报错 N 次后升级 API
+    MAX_PARSE_ERRORS_BEFORE_ESCALATE = int(
+        os.getenv("MAX_PARSE_ERRORS_BEFORE_ESCALATE", "2"))  # 参数解析失败 N 次后升级 API
+    MAX_IDENTICAL_TOOL_CALLS = int(
+        os.getenv("MAX_IDENTICAL_TOOL_CALLS", "3"))  # 同一工具+参数连续调用 N 次视为空转
+    MAX_TOOL_ERRORS_BEFORE_ESCALATE = int(
+        os.getenv("MAX_TOOL_ERRORS_BEFORE_ESCALATE", "2"))  # 工具报错 N 次后升级 API
+
+    # ── LoopGuard:空转/无进展检测 ──
+    LOOP_GUARD_ENABLED = os.getenv("LOOP_GUARD_ENABLED", "1") == "1"
+    LOOP_EXACT_REPEAT_NUDGE = int(os.getenv("LOOP_EXACT_REPEAT_NUDGE", "2"))
+    LOOP_EXACT_REPEAT_STOP = int(os.getenv("LOOP_EXACT_REPEAT_STOP", "3"))
+    LOOP_OBSERVATION_NUDGE = int(os.getenv("LOOP_OBSERVATION_NUDGE", "2"))
+    LOOP_OBSERVATION_STOP = int(os.getenv("LOOP_OBSERVATION_STOP", "3"))
+    LOOP_ERROR_REFLECT = int(os.getenv("LOOP_ERROR_REFLECT", "2"))
+    LOOP_ERROR_STOP = int(os.getenv("LOOP_ERROR_STOP", "4"))
+    LOOP_PINGPONG_REFLECT = int(os.getenv("LOOP_PINGPONG_REFLECT", "4"))
+    LOOP_PINGPONG_STOP = int(os.getenv("LOOP_PINGPONG_STOP", "6"))
+    LOOP_NO_PROGRESS_REFLECT = int(
+        os.getenv("LOOP_NO_PROGRESS_REFLECT", "3"))
+    LOOP_NO_PROGRESS_STOP = int(os.getenv("LOOP_NO_PROGRESS_STOP", "6"))
+    LOOP_LOCAL_NO_PROGRESS_ESCALATE = int(
+        os.getenv("LOOP_LOCAL_NO_PROGRESS_ESCALATE", "4"))
+    LOOP_MAX_GUARD_MESSAGES = int(
+        os.getenv("LOOP_MAX_GUARD_MESSAGES", "3"))
+    LOOP_GUARD_MESSAGE_CHARS = int(
+        os.getenv("LOOP_GUARD_MESSAGE_CHARS", "400"))
+    LOOP_FAILED_ATTEMPTS_MAX = int(
+        os.getenv("LOOP_FAILED_ATTEMPTS_MAX", "5"))
+    LOOP_EVENTS_MAX = int(os.getenv("LOOP_EVENTS_MAX", "50"))
+    LOOP_MEMORY_TTL_SECONDS = int(
+        os.getenv("LOOP_MEMORY_TTL_SECONDS", "604800"))
+    LOOP_MEMORY_REPEAT_FAILURES = int(
+        os.getenv("LOOP_MEMORY_REPEAT_FAILURES", "3"))
+    LOOP_MEMORY_MAX_CHARS = int(
+        os.getenv("LOOP_MEMORY_MAX_CHARS", "1500"))
+
+    # ── 工具熔断 ──
+    CIRCUIT_FAILURE_THRESHOLD = int(
+        os.getenv("CIRCUIT_FAILURE_THRESHOLD", "3"))
+    CIRCUIT_COOLDOWN_SECONDS = int(
+        os.getenv("CIRCUIT_COOLDOWN_SECONDS", "30"))
+    CIRCUIT_MAX_COOLDOWN_SECONDS = int(
+        os.getenv("CIRCUIT_MAX_COOLDOWN_SECONDS", "300"))
+
+    # ── 计划循环保护 ──
+    PLAN_LOOP_MAX_REPLANS = int(os.getenv("PLAN_LOOP_MAX_REPLANS", "1"))
+    PLAN_LOOP_SIGNATURE_REPEATS = int(
+        os.getenv("PLAN_LOOP_SIGNATURE_REPEATS", "2"))
+
+    # ── 主循环 watchdog(秒;0=该阶段不自动取消) ──
+    LOOP_WATCHDOG_POLL_SECONDS = float(
+        os.getenv("LOOP_WATCHDOG_POLL_SECONDS", "0.5"))
+    LOOP_WATCHDOG_LLM_SECONDS = float(
+        os.getenv("LOOP_WATCHDOG_LLM_SECONDS", "330"))
+    LOOP_WATCHDOG_TOOL_SECONDS = float(
+        os.getenv("LOOP_WATCHDOG_TOOL_SECONDS", "660"))
+    LOOP_WATCHDOG_APPROVAL_SECONDS = float(
+        os.getenv("LOOP_WATCHDOG_APPROVAL_SECONDS", "0"))
+    LOOP_WATCHDOG_CLOSE_SECONDS = float(
+        os.getenv("LOOP_WATCHDOG_CLOSE_SECONDS", "180"))
+    LOOP_WATCHDOG_NO_PROGRESS_SECONDS = float(
+        os.getenv("LOOP_WATCHDOG_NO_PROGRESS_SECONDS", "300"))
 
     # ── Phase 3:轨迹收集(路由日志 → 微调训练数据) ──
     COLLECT_TRAINING_DATA = os.getenv("COLLECT_TRAINING_DATA", "0") == "1"

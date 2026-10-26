@@ -36,10 +36,13 @@ class TrajectoryLogger:
         """记录一个 turn。outcome 由 state 推导,返回文件路径或 None。"""
         if not self.enabled:
             return None
-        if state.started_local is None and not error:
+        stop_reason = getattr(state, "stop_reason", "")
+        if state.started_local is None and not error and not stop_reason:
             return None  # 没有任何路由决策(例如空输入),不记录
         if error:
             outcome = "error"
+        elif stop_reason == "loop_stopped":
+            outcome = "loop_stopped"
         elif state.escalation_reason:
             outcome = "escalated"
         elif state.started_local:
@@ -50,11 +53,21 @@ class TrajectoryLogger:
             "messages": redact_obj(messages),
             "metadata": {
                 "outcome": outcome,
+                "turn_id": getattr(state, "turn_id", ""),
+                "caller": getattr(state, "caller", "main"),
                 "started_local": bool(state.started_local),
                 "escalation_reason": state.escalation_reason,
                 "error": str(error)[:200],
                 "parse_failures": state.parse_failures,
                 "tool_errors": state.tool_error_count,
+                "budget": getattr(state, "budget_snapshot", {}),
+                "loop_signals": list(getattr(state, "loop_signals", []))[-20:],
+                "loop_signal_counts": dict(
+                    getattr(state, "loop_signal_counts", {})),
+                "failed_attempts": list(
+                    getattr(state, "failed_attempts", []))[-10:],
+                "tool_events": list(getattr(state, "tool_events", []))[-50:],
+                "loop_stop_reason": getattr(state, "loop_stop_reason", ""),
             },
         }
         try:

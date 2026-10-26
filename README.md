@@ -166,7 +166,7 @@ lead 与队友间的 shutdown / plan_approval 请求携带 `request_id`，响应
 
 ### 8. 可测试性
 
-状态类（`TaskSystem` / `WorktreeSystem` / `ContextCompact` / `CronScheduler` / `AuditLog` / `Sandbox` / `MemoryStore` / `TranscriptStore` / `Retention` / `Roles` / `TeamMetrics` / `LeadMonitor` / `ReviewSystem` / `IntegrationSystem` / `PlanStore` / `PlanSystem`）均支持构造函数注入目录/时钟/planner/runner/approval，测试不碰真实环境。404 个用例全部离线运行：`test_core.py` 覆盖纯逻辑，`test_agent_loop.py` 用 `FakeClient` 按脚本回放，`test_dispatcher.py` / `test_budget.py` 覆盖安全与预算收尾，`test_memory_store.py` / `test_memory_tools.py` 覆盖记忆契约与策略，`test_cases.py` / `test_tasks_memory.py` / `test_transcripts.py` / `test_retention.py` 覆盖各记忆落点；`test_roles.py` / `test_task_dedupe.py` / `test_protocol.py` / `test_lead_monitor.py` / `test_review_system.py` / `test_integration_system.py` 覆盖多代理治理与合并队列；`test_plan_system.py` / `test_plan_tasks.py` / `test_plan_executor.py` / `test_plan_tools.py` / `test_plan_agent_loop.py` / `test_plan_security.py` / `test_strategy_router.py` 覆盖 Plan 契约、版本存储、DAG/审批/replan/resume、作用域 AgentLoop 与安全边界。
+状态类（`TaskSystem` / `WorktreeSystem` / `ContextCompact` / `CronScheduler` / `AuditLog` / `Sandbox` / `MemoryStore` / `TranscriptStore` / `Retention` / `Roles` / `TeamMetrics` / `LeadMonitor` / `ReviewSystem` / `IntegrationSystem` / `PlanStore` / `PlanSystem`）均支持构造函数注入目录/时钟/planner/runner/approval，测试不碰真实环境。440 个用例全部离线运行：`test_core.py` 覆盖纯逻辑，`test_agent_loop.py` 用 `FakeClient` 按脚本回放，`test_dispatcher.py` / `test_budget.py` 覆盖安全与预算收尾，`test_memory_store.py` / `test_memory_tools.py` 覆盖记忆契约与策略，`test_cases.py` / `test_tasks_memory.py` / `test_transcripts.py` / `test_retention.py` 覆盖各记忆落点；`test_roles.py` / `test_task_dedupe.py` / `test_protocol.py` / `test_lead_monitor.py` / `test_review_system.py` / `test_integration_system.py` 覆盖多代理治理与合并队列；`test_plan_system.py` / `test_plan_tasks.py` / `test_plan_executor.py` / `test_plan_tools.py` / `test_plan_agent_loop.py` / `test_plan_security.py` / `test_strategy_router.py` 覆盖 Plan 契约、版本存储、DAG/审批/replan/resume、作用域 AgentLoop 与安全边界；`test_loop_guard.py` / `test_tool_circuit_breaker.py` / `test_loop_watchdog.py` / `test_agent_loop_guard.py` 覆盖 LoopGuard 信号、工具熔断、watchdog 与主循环集成。
 
 ### 9. 线程模型
 
@@ -175,7 +175,8 @@ cron 调度线程、cron 自动执行线程、后台任务线程、队友线程�
 ### 10. 预算、审计与状态原子性
 
 - **预算**：`TurnBudget` 管理轮数/工具调用/墙钟/token；主循环超限时先为每个未执行的 `tool_call` 补一条 `[skipped]` 工具消息，再发一次 `tools=None` 收尾调用，保证 API 配对合法。子代理 30 轮 + 工具调用/墙钟上限；队友生命周期/API 调用/认领任务/团队规模上限；后台并发/排队/单任务超时；cron 任务数/prompt 长度/最小间隔。
-- **审计与备份**：`.audit/tool_calls.jsonl` 常开（与训练轨迹分开），记录 agent/tool/脱敏参数/决策/耗时/状态；写文件前复制到 `.backups/<call_id>/`。
+- **LoopGuard / 熔断 / watchdog**：每个 `run_cycle` 独立 `LoopGuard`，在每次工具结果后检测同一调用/同一输出/按 error_code 的连续失败/ABAB 交替/进度账本无增量；local 仍只升级 API，API/plan 走 nudge/reflect/stop，`loop_stopped` 走一次 `tools=None` 收尾并为剩余 tool_call 补 `[skipped]`。`ToolCircuitBreaker` 对 timeout/MCP/沙箱/异常等基础设施错误按工具熔断并半开探测；`LoopWatchdog` 按阶段（LLM/工具/审批/收尾）和工具阶段无进展做协作式取消，bash 会消费 cancel_event。高严重度失败写一条 `working` 负记忆；预算与信号计数进入 TeamMetrics/Audit/Trajectory。
+- **审计与备份**：`.audit/tool_calls.jsonl` 常开（与训练轨迹分开），记录 agent/tool/脱敏参数/决策/耗时/状态/error_code；写文件前复制到 `.backups/<call_id>/`。
 - **原子性**：任务认领用 `fcntl.flock` 串行化，带租约/心跳/过期回收；邮箱读取在锁内原子 rename 到 draining 文件；cron 持久化用临时文件 + `os.replace`。
 
 ### 11. 统一记忆契约（MemoryStore）
@@ -294,14 +295,14 @@ conda run -n llama python local_model/server.py \
 python -m unittest discover -s tests -v
 ```
 
-404 个用例全通过：
+440 个用例全通过：
 
 - **test_core.py（31 个）**：cron 表达式校验与匹配、任务生命周期与依赖阻塞、DeepSeek 消息/工具格式构造与往返、错误分类、压缩预算与配对保护、工具注册表合并（内置 + MCP）、worktree 名称校验、文件工具与路径沙箱
 - **test_agent_loop.py（2 个）**：用 `FakeClient` 离线跑通完整主循环——验证工具确实执行、tool 消息与 tool_calls 配对回传、system prompt 注入、`length` 截断升级 max_tokens 后成功收尾
 - **test_model_router.py（24 个）**：路由决策、静态调用点、模式开关、升级阶梯、本地只读工具集、轨迹收集
 - **test_catering.py（39 个）**：LMDI 拆解、数据源校验、告警扫描、ToolGuard、工作流端到端、Reasoner 降级、探索模式权限拦截/步数熔断、状态机、诊断链、评测场景
 - **test_plan_*.py / test_strategy_router.py（72 个）**：策略路由确定性、Plan validator/schema/DAG、版本化存储/路径穿越/revision 回退、Task plan_step（幂等/claim token/DAG 门禁/失败不 requeue）、PlanExecutor（依赖结果有界 prompt、task+memory+plan checkpoint、envelope/runtime/empty/unverified、审批通过/拒绝不 replan、失败自动 replan 一次、rollback 只记录、resume 跳过完成/中断保守失败、预算/并发/终态清理）、Plan 工具成对/惰性构造和 AgentLoop 作用域隔离
-- **其余 236 个**：敏感路径/控制面/脱敏/bash 分析、分发器确认与备份、预算收尾、后台完成/失败/取消/超时、任务并发认领与租约、邮箱并发消费、cron 限额、子代理只读、队友失败可见与任务释放、MCP 注解/超时、Catering 写工具逐次确认；记忆方面覆盖 MemoryStore 去重/top_k/touch/归档、任务归档与 idempotency、案例版本/时间衰减、skill 同名报错、message_id/ledger、transcript 搜索/recall、retention gzip/tar 归档；治理方面覆盖 RoleSpec/JSON 覆盖/安全不变量、任务指纹与 claim token、协议 TTL/重放、LeadMonitor、reviewer、merge queue 冲突/验收/人工门/base 变更
+- **其余 272 个**：敏感路径/控制面/脱敏/bash 分析、分发器确认与备份、预算收尾、后台完成/失败/取消/超时、任务并发认领与租约、邮箱并发消费、cron 限额、子代理只读、队友失败可见与任务释放、MCP 注解/超时、Catering 写工具逐次确认；LoopGuard 的空转/同观察/错误码/交替模式/无进展、熔断冷却/半开探测、watchdog 阶段与无进展取消、loop_stopped 收尾与负记忆；记忆方面覆盖 MemoryStore 去重/top_k/touch/归档、任务归档与 idempotency、案例版本/时间衰减、skill 同名报错、message_id/ledger、transcript 搜索/recall、retention gzip/tar 归档；治理方面覆盖 RoleSpec/JSON 覆盖/安全不变量、任务指纹与 claim token、协议 TTL/重放、LeadMonitor、reviewer、merge queue 冲突/验收/人工门/base 变更
 
 ## Catering 业务包
 
@@ -377,7 +378,7 @@ MiniClaudeCode/
 │   ├── Scheduler.py           #   定时自动诊断（复用 CronScheduler）
 │   ├── gen_fixtures.py        #   样本数据生成器（确定性）
 │   └── main.py                #   CLI：--eval/--store/--agentic/--schedule/--tasks
-├── tests/                     # 离线测试用例（404 个）
+├── tests/                     # 离线测试用例（440 个）
 ├── skills/                    # 技能目录（agent-builder / code-review / mcp-builder / pdf / catering-ops / code-analysis-ops）
 ├── .env.example               # 环境变量模板
 └── requirements.txt           # httpx / python-dotenv / pyyaml

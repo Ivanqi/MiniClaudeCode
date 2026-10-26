@@ -48,7 +48,7 @@ PLAN_FORBIDDEN_STEP_TOOLS = PLAN_TOOL_NAMES | {"spawn_teammate"}
 
 @dataclass
 class ToolResult:
-    """统一工具结果:核心循环只看 ok/exit_code,不再做字符串匹配。"""
+    """统一工具结果:核心循环按 ok/error_code 消费,不再做字符串匹配。"""
 
     content: str
     ok: bool = True
@@ -57,6 +57,7 @@ class ToolResult:
     truncated: bool = False
     artifacts: list[str] = field(default_factory=list)
     error: str | None = None
+    error_code: str = ""
 
     def __str__(self) -> str:
         return self.content
@@ -68,12 +69,62 @@ class ToolResult:
     @classmethod
     def denied_result(cls, reason: str) -> "ToolResult":
         return cls(content=f"Denied: {reason}", ok=False, denied=True,
-                   error=reason)
+                   error=reason, error_code="denied")
 
     @classmethod
     def failure(cls, content: str, error: str | None = None,
                 **kwargs) -> "ToolResult":
+        kwargs.setdefault(
+            "error_code",
+            _classify_error_text(content, kwargs.get("exit_code")))
         return cls(content=content, ok=False, error=error or content, **kwargs)
+
+
+# 这些错误代表工具/后端本身不健康;业务失败(bash_exit)不触发熔断。
+INFRA_ERROR_CODES = frozenset({
+    "timeout", "mcp_error", "sandbox_unavailable", "exception", "io_error",
+})
+
+
+def _classify_error_text(content: str, exit_code: int | None = None) -> str:
+    """把历史文本协议映射成稳定错误码;显式 error_code 永远优先。"""
+    text = str(content or "").strip()
+    lower = text.lower()
+    if exit_code == -1 or lower.startswith("error: timeout"):
+        return "timeout"
+    if exit_code == -2 or lower.startswith("error: cancelled"):
+        return "cancelled"
+    if text.startswith("Unknown:"):
+        return "unknown_tool"
+    if text.startswith("MCP error:"):
+        return "mcp_error"
+    if "path escapes workspace" in lower or "escapes workspace" in lower:
+        return "path_escape"
+    if "sandbox" in lower and ("unavailable" in lower
+                               or "not available" in lower
+                               or "not found" in lower):
+        return "sandbox_unavailable"
+    if "permission denied" in lower:
+        return "permission_denied"
+    if "no such file" in lower or "file not found" in lower:
+        return "not_found"
+    if "[errno" in lower or "i/o error" in lower:
+        return "io_error"
+    if exit_code is not None and exit_code != 0:
+        return "bash_exit"
+    return "tool_error"
+
+
+def infer_error_code(tool: str, result: ToolResult) -> str:
+    """补全 ToolResult.error_code;显式值/denied 优先。"""
+    if result.error_code:
+        return result.error_code
+    if result.denied:
+        return "denied"
+    code = _classify_error_text(result.content, result.exit_code)
+    if code == "bash_exit" and tool != "bash":
+        return "tool_error"
+    return code
 
 
 class TurnBudget:
@@ -134,6 +185,23 @@ class TurnBudget:
             "tool_calls": self.tool_calls,
             "total_tokens": self.total_tokens,
             "elapsed_s": round(self.elapsed_s(), 3),
+        }
+
+    def runtime_snapshot(self) -> dict:
+        """给 Prompt/轨迹用的预算快照:used/max/remaining,不改旧 snapshot。"""
+        def bucket(used, maximum):
+            used = round(used, 3) if isinstance(used, float) else used
+            remaining = None
+            if maximum:
+                remaining = round(max(0, maximum - used), 3) \
+                    if isinstance(used, float) else max(0, maximum - used)
+            return {"used": used, "max": maximum, "remaining": remaining}
+
+        return {
+            "rounds": bucket(self.rounds, self.max_rounds),
+            "tool_calls": bucket(self.tool_calls, self.max_tool_calls),
+            "wall_s": bucket(round(self.elapsed_s(), 3), self.max_wall_s),
+            "tokens": bucket(self.total_tokens, self.max_total_tokens),
         }
 
 

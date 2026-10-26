@@ -70,6 +70,7 @@ class TestBackgroundTasks(unittest.TestCase):
         self.assertEqual(len(notes), 1)
         self.assertIn("<status>failed</status>", notes[0])
         self.assertIn("ValueError", notes[0])
+        self.assertIn("<error_code>exception</error_code>", notes[0])
 
     def test_cancel_is_visible(self):
         background = BackgroundTaskSystem()
@@ -77,12 +78,14 @@ class TestBackgroundTasks(unittest.TestCase):
         self.assertIn("Cancelled", background.cancel(bg_id))
         notes = self._wait(background)
         self.assertIn("<status>cancelled</status>", notes[0])
+        self.assertIn("<error_code>cancelled</error_code>", notes[0])
 
     def test_timeout_is_visible(self):
         background = BackgroundTaskSystem(timeout=0.1)
         self._start(background, "slow")
         notes = self._wait(background)
         self.assertIn("<status>timed_out</status>", notes[0])
+        self.assertIn("<error_code>timeout</error_code>", notes[0])
 
     def test_get_does_not_consume(self):
         background = BackgroundTaskSystem()
