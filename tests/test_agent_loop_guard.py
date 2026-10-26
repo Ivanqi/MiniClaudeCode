@@ -185,7 +185,8 @@ class TestAgentLoopGuard(unittest.TestCase):
         loop = AgentLoop(client)
         fake = FakeWatchdog()
         history = [user_message("watchdog test")]
-        with mock.patch("src.AgentLoop.LoopWatchdog", lambda **kwargs: fake):
+        with mock.patch("src.agent_loop.cycle.LoopWatchdog",
+                        lambda **kwargs: fake):
             result = loop.run_cycle(history, {})
 
         self.assertEqual(result["status"], "loop_stopped")

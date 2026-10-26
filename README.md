@@ -363,7 +363,8 @@ MiniClaudeCode/
 │   ├── StrategyRouter.py      #   react/hybrid/plan 规则路由
 │   ├── PlanSystem.py          #   Plan 契约/存储/Planner/Executor/工具
 │   ├── ToolRegistry.py        #   工具注册表
-│   └── AgentLoop.py           #   主循环与 CLI
+│   ├── AgentLoop.py           #   兼容入口(实现见 agent_loop/)
+│   └── agent_loop/            #   主循环拆分: wiring/cycle/tools/llm/context/closing/telemetry/plan/cli
 ├── Catering/                  # 餐饮业务包：门店经营异常分析 Agent（详见 Catering/readme.md）
 │   ├── Configs.py             #   业务阈值/目录配置
 │   ├── Models.py              #   告警/发现/证据/报告/案例结构
