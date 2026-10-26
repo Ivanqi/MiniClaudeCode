@@ -17,7 +17,7 @@ from pathlib import Path
 from src.ApprovalGate import ApprovalGate, ApprovalRequest
 from src.AuditLog import AuditLog
 from src.BasicOper import BASIC_OPER, BasicOper
-from src.FileLock import ensure_private_dir
+from src.FileLock import ensure_private_dir, file_lock
 from src.Sandbox import Sandbox, SandboxUnavailable
 from src.SecurityPolicy import (CONFIRM, DENY, analyze_bash, child_env,
                                 classify_path, redact)
@@ -411,8 +411,9 @@ class ToolDispatcher:
             safe_id = _UNSAFE_NAME.sub("_", raw_id)[:64] or uuid.uuid4().hex[:8]
             backup_root = ensure_private_dir(root / ".backups" / safe_id)
             target = backup_root / path.relative_to(root)
-            target.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(path, target)
+            with file_lock(root / ".backups" / ".backups.lock"):
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(path, target)
             return str(target)
         except (OSError, ValueError):
             return None

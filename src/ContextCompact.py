@@ -10,6 +10,7 @@ import uuid
 from pathlib import Path
 
 from src.Configs import Configs
+from src.FileLock import atomic_write_text, ensure_private_dir, file_lock
 from src.LlmClient import make_function_tool, user_message
 from src.SecurityPolicy import redact, redact_obj
 from src.Terminal import Terminal
@@ -18,9 +19,15 @@ from src.Terminal import Terminal
 class ContextCompact:
     """上下文压缩器:只依赖消息列表与 LLM 客户端,无其他耦合。"""
 
-    def __init__(self, tool_results_dir: Path | None = None, router=None):
-        self.tool_results_dir = tool_results_dir or Configs.TOOL_RESULTS_DIR
+    def __init__(self, tool_results_dir: Path | None = None, router=None,
+                 transcript_store=None, transcript_dir: Path | None = None,
+                 memory_store=None):
+        self.tool_results_dir = (tool_results_dir
+                                 or Configs.task_outputs_dir())
         self.router = router  # None 表示直接用传入的 client(向后兼容)
+        self.transcript_store = transcript_store
+        self.transcript_dir = transcript_dir
+        self.memory_store = memory_store
 
     # ── 消息结构判断 ──
 
@@ -64,8 +71,9 @@ class ContextCompact:
             or uuid.uuid4().hex[:8]
         text = redact(output)
         path = self.tool_results_dir / f"{safe_id}.txt"
-        if not path.exists():
-            path.write_text(text, encoding="utf-8")
+        with file_lock(self.tool_results_dir / ".tool-results.lock"):
+            if not path.exists():
+                path.write_text(text, encoding="utf-8")
         return (f"<persisted-output>\nFull output: {path}\n"
                 f"Preview:\n{text[:2000]}\n</persisted-output>")
 
@@ -171,13 +179,16 @@ class ContextCompact:
     对模型当下推理来说，细节已经不在上下文中了。教学代码没有提供 transcript 检索工具。
     '''
     def write_transcript(self, messages: list) -> Path:
-        transcript_dir = Configs.TRANSCRIPT_DIR
-        transcript_dir.mkdir(parents=True, exist_ok=True)
-        path = transcript_dir / f"transcript_{int(time.time())}.jsonl"
-        with path.open("w", encoding="utf-8") as f:
-            for msg in messages:
-                f.write(json.dumps(redact_obj(msg), default=str,
-                                   ensure_ascii=False) + "\n")
+        if self.transcript_store is not None:
+            return self.transcript_store.write(messages)
+        transcript_dir = ensure_private_dir(
+            self.transcript_dir or Configs.transcript_dir())
+        path = transcript_dir / (f"transcript_{int(time.time())}_"
+                                 f"{uuid.uuid4().hex[:8]}.jsonl")
+        lines = [json.dumps(redact_obj(msg), default=str,
+                            ensure_ascii=False) for msg in messages]
+        with file_lock(transcript_dir / ".transcripts.lock"):
+            atomic_write_text(path, "\n".join(lines) + ("\n" if lines else ""))
         return path
 
     '''

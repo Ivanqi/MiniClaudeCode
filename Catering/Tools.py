@@ -4,7 +4,6 @@
 工具结果统一为归一化 dict,缺失数据显式写入 missing_fields,不填默认值;
 LLM 与规则引擎消费同一份结构化结果,保证"说"与"算"同源。
 """
-import json
 
 from src.BasicOper import BasicOper
 from src.LlmClient import make_function_tool
@@ -383,11 +382,11 @@ class CateringTools:
         case = {"case_id": case_id, "store_id": store_id, "date": date,
                 "main_factor": main_factor, "dimensions": dimensions,
                 "summary": summary, "actions": actions, "tags": tags}
-        fp = CateringConfigs.CASES_DIR / "archive" / f"{case_id}.json"
-        fp.parent.mkdir(parents=True, exist_ok=True)
-        fp.write_text(json.dumps({"cases": [case]}, ensure_ascii=False,
-                                 indent=2))
-        return {"archived": case_id, "path": str(fp)}
+        result = self.hub.archive_case(case, source="tool:archive_case",
+                                       confidence=0.8)
+        return {"archived": case_id, "path": str(result.path),
+                "version": result.record.get("version", 1),
+                "updated": result.updated}
 
     # ── 工具定义与处理器 ──
 

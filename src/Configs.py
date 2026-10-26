@@ -127,6 +127,93 @@ class Configs:
         item.strip() for item in os.getenv("AUTO_APPROVE_TOOLS", "").split(",")
         if item.strip())
 
+    # ── 记忆与情景数据 ──
+    MEMORY_TOP_K = int(os.getenv("MEMORY_TOP_K", "6"))
+    MEMORY_CONTEXT_CHARS = int(os.getenv("MEMORY_CONTEXT_CHARS", "6000"))
+    MEMORY_ITEM_PROMPT_CHARS = int(
+        os.getenv("MEMORY_ITEM_PROMPT_CHARS", "1200"))
+    MEMORY_MAX_CONTENT_CHARS = int(
+        os.getenv("MEMORY_MAX_CONTENT_CHARS", "4000"))
+    MEMORY_DEFAULT_CONFIDENCE = float(
+        os.getenv("MEMORY_DEFAULT_CONFIDENCE", "0.6"))
+    MEMORY_MAX_ITEMS_PER_NAMESPACE = int(
+        os.getenv("MEMORY_MAX_ITEMS_PER_NAMESPACE", "5000"))
+    MEMORY_HALF_LIFE_DAYS = float(os.getenv("MEMORY_HALF_LIFE_DAYS", "30"))
+    MEMORY_TOUCH_INTERVAL_SECONDS = int(
+        os.getenv("MEMORY_TOUCH_INTERVAL_SECONDS", "60"))
+    MEMORY_INDEX_MAX_ITEMS = int(
+        os.getenv("MEMORY_INDEX_MAX_ITEMS", "2000"))
+    MESSAGE_DEDUPE_LEDGER_MAX = int(
+        os.getenv("MESSAGE_DEDUPE_LEDGER_MAX", "2000"))
+    CASE_SEARCH_HALF_LIFE_DAYS = float(
+        os.getenv("CASE_SEARCH_HALF_LIFE_DAYS", "180"))
+
+    # ── retention:过期只归档,不删除;training_data 默认不自动清理 ──
+    RETENTION_ENABLED = os.getenv("RETENTION_ENABLED", "1") == "1"
+    RETENTION_GRACE_SECONDS = int(
+        os.getenv("RETENTION_GRACE_SECONDS", "3600"))
+    RETENTION_TRANSCRIPTS_DAYS = int(
+        os.getenv("RETENTION_TRANSCRIPTS_DAYS", "30"))
+    RETENTION_TRANSCRIPTS_MAX = int(
+        os.getenv("RETENTION_TRANSCRIPTS_MAX", "500"))
+    RETENTION_TOOL_OUTPUTS_DAYS = int(
+        os.getenv("RETENTION_TOOL_OUTPUTS_DAYS", "7"))
+    RETENTION_TOOL_OUTPUTS_MAX = int(
+        os.getenv("RETENTION_TOOL_OUTPUTS_MAX", "500"))
+    RETENTION_BACKUPS_DAYS = int(
+        os.getenv("RETENTION_BACKUPS_DAYS", "30"))
+    RETENTION_BACKUPS_MAX = int(
+        os.getenv("RETENTION_BACKUPS_MAX", "200"))
+    RETENTION_TRAINING_DATA = os.getenv(
+        "RETENTION_TRAINING_DATA", "0") == "1"
+    RETENTION_TRAINING_DAYS = int(
+        os.getenv("RETENTION_TRAINING_DAYS", "90"))
+    RETENTION_TRAINING_MAX = int(
+        os.getenv("RETENTION_TRAINING_MAX", "5000"))
+
+    TRANSCRIPT_SEARCH_MAX_FILES = int(
+        os.getenv("TRANSCRIPT_SEARCH_MAX_FILES", "200"))
+    TRANSCRIPT_SEARCH_MAX_BYTES = int(
+        os.getenv("TRANSCRIPT_SEARCH_MAX_BYTES", "2000000"))
+    TRANSCRIPT_RECALL_MAX_BYTES = int(
+        os.getenv("TRANSCRIPT_RECALL_MAX_BYTES", "100000"))
+
+    @classmethod
+    def memory_dir(cls) -> Path:
+        return cls.WORKDIR / ".memory"
+
+    @classmethod
+    def memory_index(cls) -> Path:
+        return cls.memory_dir() / "MEMORY.md"
+
+    @classmethod
+    def transcript_dir(cls) -> Path:
+        return cls.WORKDIR / ".transcripts"
+
+    @classmethod
+    def task_outputs_dir(cls) -> Path:
+        return cls.WORKDIR / ".task_outputs" / "tool-results"
+
+    @classmethod
+    def training_data_dir(cls) -> Path:
+        return cls.WORKDIR / ".training_data"
+
+    @classmethod
+    def tasks_dir(cls) -> Path:
+        return cls.WORKDIR / ".tasks"
+
+    @classmethod
+    def mailbox_dir(cls) -> Path:
+        return cls.WORKDIR / ".mailboxes"
+
+    @classmethod
+    def skills_dir(cls) -> Path:
+        return cls.WORKDIR / "skills"
+
+    @classmethod
+    def worktrees_dir(cls) -> Path:
+        return cls.WORKDIR / ".worktrees"
+
     @classmethod
     def audit_dir(cls) -> Path:
         """审计目录(惰性解析 WORKDIR,便于测试重定向)。"""

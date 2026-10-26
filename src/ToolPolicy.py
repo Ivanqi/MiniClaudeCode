@@ -13,7 +13,7 @@ from src.Configs import Configs
 # 与 ToolRegistry.READONLY_TOOL_NAMES 保持一致(本地小模型/只读子代理)
 READONLY_TOOL_NAMES = frozenset({
     "read_file", "glob", "list_tasks", "get_task", "list_crons", "load_skill",
-    "get_background_task",
+    "get_background_task", "recall",
 })
 
 SUBAGENT_TOOLS = frozenset({
@@ -31,6 +31,7 @@ WRITE_TOOL_NAMES = frozenset({"write_file", "edit_file"})
 # 这些工具默认逐次确认;remove_worktree 仅在 discard_changes=true 时确认。
 DEFAULT_CONFIRM_TOOLS = frozenset({
     "remove_worktree", "archive_case", "deploy_asset", "register_asset",
+    "forget",
 })
 
 BASH_FULL = "full"

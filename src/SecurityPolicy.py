@@ -65,8 +65,16 @@ CONTROL_PLANE_PATTERNS = (
     "src/SubagentSystem.py",
     "src/TeammateSystem.py",
     "src/BackgroundTaskSystem.py",
+    "src/MemoryStore.py",
+    "src/TranscriptStore.py",
+    "src/Retention.py",
+    "src/Memories.py",
+    "src/SkillSystem.py",
     "Catering/Guardrails.py",
     "Catering/AnomalyAgent.py",
+    "Catering/Cases.py",
+    "Catering/data/cases/**",
+    "skills/**",
     ".claude/**",
 )
 

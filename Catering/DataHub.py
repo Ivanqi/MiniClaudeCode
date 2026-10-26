@@ -22,6 +22,7 @@ from datetime import date as date_type
 from datetime import timedelta
 from pathlib import Path
 
+from Catering.Cases import CaseStore, case_search_decay, load_cases
 from Catering.Configs import CateringConfigs
 
 # ── 错误与记录校验 ──
@@ -188,37 +189,47 @@ class KnowledgeBaseSource(JsonFileSource):
     category = "knowledge_base"
 
     def all_cases(self) -> list[dict]:
-        cases = []
-        cases_dir = self.data_dir / "cases"
-        if not cases_dir.exists():
-            return cases
-        for fp in sorted(cases_dir.glob("*.json")):
-            try:
-                payload = json.loads(fp.read_text())
-            except (OSError, json.JSONDecodeError):
-                continue
-            cases.extend(payload.get("cases") or [])
-        return cases
+        roots = [self.data_dir / "cases"]
+        try:
+            global_root = CateringConfigs.CASES_DIR
+        except Exception:
+            global_root = None
+        if global_root is not None:
+            roots.append(global_root)
+        store = getattr(self, "case_store", None)
+        if store is not None:
+            roots.append(store.cases_dir)
+        return load_cases(*roots)
 
     def query(self, store_id: str, date: str = "", symptom: str = "",
               top_k: int = 3, **params) -> dict:
         text = str(symptom)
         tokens = set(re.split(r"[^\w一-鿿]+", text))
-        matches = []
+        matches, seen = [], set()
         for case in self.all_cases():
-            tags = case.get("tags") or []
-            score = 1.0 if case.get("store_id") == store_id else 0.0
-            score += 2.0 if case.get("main_factor") in tokens else 0.0
-            # 中文标签按子串匹配(分词不可靠),西文标签按 token 匹配
-            score += sum(1.0 for t in tags if t and t in text)
-            score += sum(0.5 for t in tags if t and t in tokens)
-            if score <= 0:
+            case_id = case.get("case_id")
+            if case_id in seen:
                 continue
+            seen.add(case_id)
+            tags = case.get("tags") or []
+            base = 1.0 if case.get("store_id") == store_id else 0.0
+            base += 2.0 if case.get("main_factor") in tokens else 0.0
+            # 中文标签按子串匹配(分词不可靠),西文标签按 token 匹配
+            base += sum(1.0 for t in tags if t and t in text)
+            base += sum(0.5 for t in tags if t and t in tokens)
+            if base <= 0:
+                continue
+            recency = case_search_decay(case)
+            confidence = float(case.get("confidence", 0.5) or 0.5)
+            score = base * (0.75 + 0.25 * recency) + 0.25 * confidence
             matches.append({k: case.get(k) for k in
                             ("case_id", "store_id", "date", "main_factor",
-                             "dimensions", "summary", "actions", "tags")}
+                             "dimensions", "summary", "actions", "tags",
+                             "version", "updated_at", "source",
+                             "confidence")}
                            | {"score": score})
-        matches.sort(key=lambda m: m["score"], reverse=True)
+        matches.sort(key=lambda m: (m["score"], m.get("updated_at") or 0),
+                     reverse=True)
         return {"store_id": store_id, "symptom": symptom,
                 "match_count": len(matches),
                 "matches": matches[:top_k], "missing_fields": []}
@@ -230,16 +241,26 @@ class KnowledgeBaseSource(JsonFileSource):
 class DataHub:
     """数据中枢:路由查询到八类数据源,提供日记录/基准/案例检索入口。"""
 
-    def __init__(self, data_dir: Path | None = None):
+    def __init__(self, data_dir: Path | None = None,
+                 case_store: CaseStore | None = None):
         self.data_dir = data_dir or CateringConfigs.DATA_DIR
+        # 案例写入使用惰性 CASES_DIR(便于 mock.patch);读取同时扫 data_dir/cases。
+        self.case_store = case_store or CaseStore()
+        knowledge_base = KnowledgeBaseSource(self.data_dir)
+        knowledge_base.case_store = self.case_store
         self.sources: dict[str, DataSource] = {
             "store_db": StoreDbSource(self.data_dir),
             "pos": PosSource(self.data_dir),
             "takeout": TakeoutSource(self.data_dir),
             "internal_system": InternalSystemSource(self.data_dir),
             "external_api": ExternalApiSource(self.data_dir),
-            "knowledge_base": KnowledgeBaseSource(self.data_dir),
+            "knowledge_base": knowledge_base,
         }
+
+    def archive_case(self, case: dict, source: str = "tool:archive_case",
+                     confidence: float = 0.8):
+        return self.case_store.upsert(case, source=source,
+                                      confidence=confidence)
 
     def query(self, category: str, store_id: str, date: str,
               **params) -> dict:

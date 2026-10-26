@@ -65,6 +65,49 @@ class TestMessageBus(unittest.TestCase):
             self.bus.send("../evil", "b", "x")
         self.assertEqual(self.bus.read_inbox("../evil"), [])
 
+    def test_send_returns_message_id(self):
+        message_id = self.bus.send("a", "b", "hello")
+        self.assertTrue(message_id)
+        messages = self.bus.read_inbox("b")
+        self.assertEqual(messages[0]["message_id"], message_id)
+
+    def test_explicit_duplicate_send_is_skipped(self):
+        self.bus.send("a", "b", "once", message_id="fixed-id")
+        self.bus.send("a", "b", "twice", message_id="fixed-id")
+        messages = self.bus.read_inbox("b")
+        self.assertEqual(len(messages), 1)
+        self.assertEqual(messages[0]["content"], "once")
+
+    def test_delivered_id_is_not_redelivered(self):
+        self.bus.send("a", "b", "once", message_id="delivered-id")
+        self.assertEqual(len(self.bus.read_inbox("b")), 1)
+        # 模拟崩溃/重放:同 ID 再次落到 inbox
+        record = {"message_id": "delivered-id", "from": "a", "to": "b",
+                  "content": "replay", "type": "message", "ts": 2,
+                  "metadata": {}}
+        (self.dir / "b.jsonl").write_text(json.dumps(record) + "\n")
+        self.assertEqual(self.bus.read_inbox("b"), [])
+
+    def test_legacy_message_gets_synthetic_id_and_dedupes(self):
+        record = {"from": "a", "to": "b", "content": "legacy",
+                  "type": "message", "ts": 1, "metadata": {}}
+        (self.dir / "b.jsonl").write_text(json.dumps(record) + "\n")
+        first = self.bus.read_inbox("b")
+        self.assertEqual(len(first), 1)
+        self.assertTrue(first[0]["message_id"])
+        (self.dir / "b.jsonl").write_text(json.dumps(record) + "\n")
+        self.assertEqual(self.bus.read_inbox("b"), [])
+
+    def test_ledger_is_bounded(self):
+        from src.Configs import Configs
+        from unittest import mock
+        with mock.patch.object(Configs, "MESSAGE_DEDUPE_LEDGER_MAX", 2):
+            for index in range(5):
+                self.bus.send("a", "b", f"m{index}",
+                              message_id=f"id-{index}")
+        ledger = (self.dir / "b.sent.jsonl").read_text().splitlines()
+        self.assertEqual(len(ledger), 2)
+
 
 if __name__ == "__main__":
     unittest.main()

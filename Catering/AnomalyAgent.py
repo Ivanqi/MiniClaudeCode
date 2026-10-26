@@ -244,13 +244,11 @@ class AnomalyAgent:
                         + [f.dimension for f in report.findings
                            if f.verdict == "anomaly"],
             }
-            fp = CateringConfigs.CASES_DIR / "archive" / f"{case['case_id']}.json"
-            fp.parent.mkdir(parents=True, exist_ok=True)
-            fp.write_text(json.dumps({"cases": [case]}, ensure_ascii=False,
-                                     indent=2))
+            self.tools.hub.archive_case(
+                case, source="workflow:review_gate", confidence=0.9)
             Terminal.info("memory", f"案例已归档: {case['case_id']}",
                           Terminal.GREEN)
-        except OSError as e:
+        except (OSError, ValueError) as e:
             Terminal.info("memory", f"归档失败: {e}", Terminal.YELLOW)
 
     # ── 探索模式:explore ──

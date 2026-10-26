@@ -625,7 +625,7 @@ class TestTaskSystemMirror(unittest.TestCase):
         chain = Planner().load_chain()
         engine.run(chain, AnomalyAlert(store_id="A店", date=ALERT_DATE,
                                        source="detector"))
-        board = tasks.list_tasks()
+        board = tasks.list_tasks(include_completed=True)
         self.assertEqual(len(board), len(chain["steps"]))
         self.assertTrue(all(t.status == "completed" for t in board))
         self.assertTrue(all(t.owner == "diagnostic-engine" for t in board))

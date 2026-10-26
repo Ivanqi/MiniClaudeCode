@@ -18,13 +18,15 @@ from src.ContextCompact import ContextCompact
 from src.CronScheduler import CRON_SCHEDULER
 from src.HookSystem import HOOK_SYSTEM
 from src.LlmClient import (assistant_message, tool_message, user_message)
-from src.Memories import MEMORIES
+from src.Memories import Memories
+from src.MemoryStore import MemoryStore
 from src.ModelRouter import ModelRouter, RouterDecision
 from src.McpSystem import MCP_SYSTEM
 from src.PromptBuilder import PromptBuilder
 from src.ProtocolSystem import PROTOCOL
 from src.RecoverySystem import (RecoveryState, is_prompt_too_long_error,
                                 with_retry)
+from src.Retention import RetentionManager
 from src.Sandbox import Sandbox
 from src.SkillSystem import SKILL_SYSTEM
 from src.SubagentSystem import SubagentSystem
@@ -36,6 +38,7 @@ from src.ToolPolicy import (TurnBudget, lead_policy, local_policy,
                             skipped_tool_messages)
 from src.ToolRegistry import ToolRegistry
 from src.TrajectoryLogger import TrajectoryLogger
+from src.TranscriptStore import TranscriptStore
 from src.WorktreeSystem import WORKTREE_SYSTEM
 
 TODO_REMINDER_ROUNDS = 3
@@ -51,18 +54,23 @@ class AgentLoop:
         self.router = router or ModelRouter(client)
         self.basic = BASIC_OPER
         self.hooks = HOOK_SYSTEM
-        self.compact = ContextCompact(router=self.router)
         self.background = BACKGROUND_TASKS
         self.cron = CRON_SCHEDULER
         self.mcp = MCP_SYSTEM
         self.protocol = PROTOCOL
-        self.memories = MEMORIES
         self.prompt_builder = PromptBuilder()
         self.trajectory = TrajectoryLogger()  # Phase 3:路由轨迹 → 微调数据
 
         # 统一分发:权限、确认、沙箱、审计、备份都收口在这里。
         # 构造过程不做文件 I/O / 沙箱探测,便于测试注入。
         self.audit = AuditLog()
+        self.memory = MemoryStore(audit=self.audit)
+        self.transcripts = TranscriptStore(memory=self.memory)
+        self.retention = RetentionManager(audit=self.audit)
+        self.compact = ContextCompact(
+            router=self.router, transcript_store=self.transcripts,
+            memory_store=self.memory)
+        self.memories = Memories(memory=self.memory, tasks=TASK_SYSTEM)
         self.approval = ApprovalGate()
         self.sandbox = Sandbox()
         self.dispatcher = dispatcher or ToolDispatcher(
@@ -78,7 +86,8 @@ class AgentLoop:
         # 通过 handlers() 方法返回该字典的副本或直接引用，供外部查询或调用
         for system in (self.basic, TASK_SYSTEM, WORKTREE_SYSTEM, SKILL_SYSTEM,
                        self.cron, self.mcp, self.teammates, self.subagents,
-                       self.background, self.compact):
+                       self.background, self.memory, self.transcripts,
+                       self.compact):
             self.tool_registry.register_system(system)
 
         self.rounds_since_todo = 0
@@ -335,7 +344,7 @@ class AgentLoop:
                 Terminal.print(str(output)[:300])
 
                 # ── 质量信号:工具报错 / 空转检测 → 下一轮升级 API ──
-                if decision.local:metadata
+                if decision.local:
                     if not result_ok:
                         state.tool_error_count += 1
                         if state.tool_error_count >= Configs.MAX_TOOL_ERRORS_BEFORE_ESCALATE:
@@ -425,7 +434,21 @@ class AgentLoop:
 
     # ── CLI ──
 
+    def _startup_maintenance(self):
+        """CLI 启动时 best-effort:过期记忆归档、索引重建、retention。"""
+        try:
+            self.memory.expire()
+            self.memory.rebuild_index()
+        except Exception as exc:
+            Terminal.info("memory", f"startup maintenance failed: {exc}",
+                          Terminal.RED)
+        try:
+            self.retention.run_startup()
+        except Exception as exc:
+            Terminal.info("retention", f"startup failed: {exc}", Terminal.RED)
+
     def run_cli(self):
+        self._startup_maintenance()
         self.cron.start()
         Terminal.print("MiniClaudeCode: coding agent")
         Terminal.print("Enter a question, press Enter to send. Type q to quit.\n")

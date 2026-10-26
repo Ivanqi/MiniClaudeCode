@@ -29,7 +29,7 @@
 | 层 | 模块 | 职责 |
 |---|---|---|
 | 基础层 | `Configs` `Models` | 阈值/目录配置;告警、发现、证据、报告、案例等数据结构 |
-| 领域层 | `DataHub` `Metrics` `Tools` | 八类数据源抽象+模拟适配器;LMDI 贡献度拆解等确定性计算;餐饮工具集 |
+| 领域层 | `DataHub` `Metrics` `Tools` `Cases` | 八类数据源抽象+模拟适配器;LMDI 贡献度拆解等确定性计算;餐饮工具集;案例版本化/去重存储 |
 | 智能体层 | `Workflow` `Guardrails` `Reasoner` | 诊断链引擎+状态机;规则求值/报告校验/工具权限;LLM 归纳+降级 |
 | 编排层 | `AnomalyAgent` `Evaluator` `main.py` | 双模式组装;离线评测;CLI 入口 |
 
@@ -66,6 +66,11 @@
 
 `Tools.py` 暴露 12 个只读工具 + 1 个受控写工具(`archive_case`,默认禁用;开启后探索模式仍需逐次人工确认),
 `tool_defs()/handlers()` 双接口可直接注册进 `src.ToolRegistry`。
+
+案例归档走 `Cases.py` 的版本化 upsert:保留 `<CASES_DIR>/archive/<case_id>.json` 与
+`{"cases":[record]}` 信封,新增 `version/updated_at/source/confidence/content_hash`;
+同一 `case_id` 内容变化时原地升 version,不再覆盖丢失历史。`all_cases()` 递归扫描
+legacy fixtures 与 `archive/`,`search_cases` 按 `case_id` 去重并加入时间衰减。
 
 ### 3. Workflow(需求 3)
 
@@ -180,7 +185,7 @@ LMDI 期望值由生成器**内联独立实现**写入 `data/expected_contributi
 ## 测试
 
 ```bash
-python -m unittest discover -s tests -v    # 209 个用例(含 Catering 39 个),全部离线
+python -m unittest discover -s tests -v    # 272 个用例(含 Catering 39 个),全部离线
 ```
 
 ## 已知限制(v1)
@@ -190,4 +195,5 @@ python -m unittest discover -s tests -v    # 209 个用例(含 Catering 39 个),
 - 知识库检索为关键词/标签打分,未用向量检索;
 - 探索模式产出为自由文本(不强制报告 schema),评测重点为调用效率与权限零违规;
 - 写工具逐次确认依赖 TTY;cron/非交互场景会 fail-closed,不自动归档;
-- 品类客单以"订单"为分母,与门店客单价(客流分母)口径不同,不可直接比较。
+- 品类客单以"订单"为分母,与门店客单价(客流分母)口径不同,不可直接比较;
+- 案例版本以 `case_id + content_hash` 去重,legacy fixtures 默认 `source=legacy/confidence=0.5`;真实知识库迁移时需保留稳定 `case_id`。

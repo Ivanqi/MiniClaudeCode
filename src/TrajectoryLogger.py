@@ -15,8 +15,10 @@
 import itertools
 import json
 import time
+import uuid
 
 from src.Configs import Configs
+from src.FileLock import atomic_write_text, ensure_private_dir, file_lock
 from src.SecurityPolicy import redact_obj
 from src.Terminal import Terminal
 
@@ -25,7 +27,7 @@ class TrajectoryLogger:
     """把 run_cycle 的对话轨迹写入 .training_data/ 目录。"""
 
     def __init__(self, directory=None, enabled: bool | None = None):
-        self.directory = directory or Configs.TRAINING_DATA_DIR
+        self.directory = directory or Configs.training_data_dir()
         self.enabled = (enabled if enabled is not None
                         else Configs.COLLECT_TRAINING_DATA)
         self._counter = itertools.count(1)  # 文件名去重:同一秒内多条不互相覆盖
@@ -56,12 +58,15 @@ class TrajectoryLogger:
             },
         }
         try:
-            self.directory.mkdir(parents=True, exist_ok=True)
+            ensure_private_dir(self.directory)
             stamp = f"{int(time.time())}"
             seq = next(self._counter)
-            path = self.directory / f"turn_{stamp}_{seq:04d}.jsonl"
-            path.write_text(json.dumps(record, default=str, ensure_ascii=False)
-                            + "\n")
+            path = self.directory / (
+                f"turn_{stamp}_{seq:04d}_{uuid.uuid4().hex[:8]}.jsonl")
+            with file_lock(self.directory / ".training.lock"):
+                atomic_write_text(
+                    path, json.dumps(record, default=str,
+                                     ensure_ascii=False) + "\n")
             Terminal.info("trajectory",
                           f"{outcome} → {path.name}", Terminal.MAGENTA)
             return str(path)
