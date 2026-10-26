@@ -47,6 +47,10 @@ class ApprovalGate:
         return any(pattern.endswith("*") and tool.startswith(pattern[:-1])
                    for pattern in self.auto_approve)
 
+    def is_auto_approved(self, tool: str) -> bool:
+        """供审计区分 human 与 AUTO_APPROVE_TOOLS 自动放行。"""
+        return self._auto_approved(tool)
+
     def can_prompt(self) -> bool:
         return bool(self.interactive and self._tty_check()
                     and self._thread_check())

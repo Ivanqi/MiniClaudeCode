@@ -5,10 +5,12 @@
 - load/get/can_start 同时识别 active/archive,完成依赖仍能解锁后续任务;
 - create_task 支持 idempotency_key,重复创建返回已有任务而不是追加。
 """
+import hashlib
 import json
 import random
 import threading
 import time
+import uuid
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
@@ -17,7 +19,9 @@ from pathlib import Path
 from src.Configs import Configs
 from src.FileLock import atomic_write_text, file_lock
 from src.LlmClient import make_function_tool
+from src.MemoryStore import normalize_text, tokenize
 from src.SecurityPolicy import validate_task_id
+from src.TeamMetrics import TEAM_METRICS
 from src.Terminal import Terminal
 
 
@@ -38,6 +42,82 @@ class Task:
     created_at: float | None = None
     updated_at: float | None = None
     completed_at: float | None = None
+    kind: str = "work"                  # work | integration
+    scope: str = ""
+    target_files: list[str] = field(default_factory=list)
+    acceptance: str = ""
+    fingerprint: str = ""
+    duplicate_of: str | None = None
+    dedupe_score: float = 0.0
+    claim_token: str | None = None
+    base_ref: str = ""
+    base_sha: str = ""
+    source_tasks: list[str] = field(default_factory=list)
+    integration_worktree: str | None = None
+    integration_branch: str | None = None
+    acceptance_command: str = ""
+    merge_status: str = ""
+    conflict_files: list[str] = field(default_factory=list)
+    preflight_base_sha: str = ""
+    source_heads: dict = field(default_factory=dict)
+    preflight_exit_code: int | None = None
+    preflight_output: str = ""
+    apply_exit_code: int | None = None
+    apply_output: str = ""
+    merged_commit: str = ""
+    approved_by: str = ""
+    approved_at: float | None = None
+    review_status: str = ""
+    review_findings: list[str] = field(default_factory=list)
+    reviewed_at: float | None = None
+    reviewed_by: str = ""
+    reviewed_head: str = ""
+
+
+@dataclass
+class CreateResult:
+    task: Task
+    created: bool = False
+    reused: bool = False
+    reason: str = ""
+    similar: list[tuple[str, str, float]] = field(default_factory=list)
+
+
+def _normalize_targets(target_files) -> list[str]:
+    if target_files is None:
+        return []
+    if isinstance(target_files, str):
+        target_files = [target_files]
+    targets, seen = [], set()
+    for item in target_files:
+        value = normalize_text(str(item)).strip()
+        if not value or value in seen:
+            continue
+        seen.add(value)
+        targets.append(value[:300])
+        if len(targets) >= 100:
+            break
+    return targets
+
+
+def canonical_fingerprint(subject: str, scope: str = "",
+                          target_files=None, blocked_by=None,
+                          acceptance: str = "") -> str:
+    payload = {
+        "subject": normalize_text(subject).casefold(),
+        "scope": normalize_text(scope).casefold(),
+        "targets": sorted(_normalize_targets(target_files)),
+        "blockedBy": sorted(str(item) for item in (blocked_by or [])),
+        "acceptance": normalize_text(acceptance).casefold(),
+    }
+    raw = json.dumps(payload, sort_keys=True, ensure_ascii=False)
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
+def _token_set(task: Task) -> set[str]:
+    text = " ".join([task.subject or "", task.scope or "",
+                     *list(task.target_files or [])])
+    return tokenize(text)
 
 
 class TaskSystem:
@@ -144,16 +224,86 @@ class TaskSystem:
             raise ValueError("idempotency_key must be printable and <=256 chars")
         return value
 
-    def create_task(self, subject: str, description: str = "",
-                    blockedBy: list[str] | None = None,
-                    idempotency_key: str | None = None) -> Task:
+    def _active_work_unlocked(self) -> list[Task]:
+        return [task for task in self._list_unlocked()
+                if task.kind == "work"
+                and task.status in ("pending", "in_progress")]
+
+    def _find_fingerprint_unlocked(self, fingerprint: str) -> Task | None:
+        if not fingerprint:
+            return None
+        for task in self._active_work_unlocked():
+            if task.fingerprint == fingerprint:
+                return task
+        return None
+
+    def _similar_unlocked(self, subject: str, scope: str,
+                          targets: list[str],
+                          limit: int = 5) -> list[tuple[str, str, float]]:
+        if not targets:
+            return []
+        threshold = max(0.0, min(1.0, Configs.TASK_DEDUPE_FUZZY_THRESHOLD))
+        scope_norm = normalize_text(scope).casefold()
+        target_set = set(targets)
+        query_tokens = tokenize(" ".join([subject or "", scope or "",
+                                          *targets]))
+        if not query_tokens:
+            return []
+        results = []
+        for task in self._active_work_unlocked():
+            if normalize_text(task.scope).casefold() != scope_norm:
+                continue
+            if not target_set & set(task.target_files or []):
+                continue
+            tokens = _token_set(task)
+            union = query_tokens | tokens
+            if not union:
+                continue
+            score = len(query_tokens & tokens) / len(union)
+            if score >= threshold:
+                results.append((task.id, task.subject, round(score, 4)))
+        results.sort(key=lambda item: (-item[2], item[0]))
+        return results[:max(1, int(limit))]
+
+    def find_by_fingerprint(self, fingerprint: str) -> Task | None:
+        with self._locked():
+            return self._find_fingerprint_unlocked(fingerprint)
+
+    def find_similar(self, subject: str, scope: str = "",
+                     target_files=None,
+                     limit: int = 5) -> list[tuple[str, str, float]]:
+        targets = _normalize_targets(target_files)
+        with self._locked():
+            return self._similar_unlocked(subject, scope, targets, limit)
+
+    def create_task_result(self, subject: str, description: str = "",
+                           blockedBy: list[str] | None = None,
+                           idempotency_key: str | None = None,
+                           scope: str = "", target_files=None,
+                           acceptance: str = "",
+                           kind: str = "work") -> CreateResult:
+        if kind not in ("work", "integration"):
+            raise ValueError(f"invalid task kind: {kind}")
         key = self._validate_idempotency_key(idempotency_key)
+        targets = _normalize_targets(target_files)
+        acceptance = normalize_text(acceptance)[:2000]
+        scope = normalize_text(scope)[:500]
+        fingerprint = canonical_fingerprint(
+            subject, scope, targets, blockedBy, acceptance)
         now = self._now()
         with self._locked():
             if key is not None:
                 existing = self._find_idempotency_unlocked(key)
                 if existing is not None:
-                    return existing
+                    TEAM_METRICS.record("task_deduped")
+                    return CreateResult(task=existing, reused=True,
+                                        reason="idempotency_key")
+            exact = self._find_fingerprint_unlocked(fingerprint)
+            if exact is not None:
+                TEAM_METRICS.record("task_deduped")
+                return CreateResult(task=exact, reused=True,
+                                    reason="fingerprint")
+            similar = self._similar_unlocked(subject, scope, targets)
             task_id = f"task_{int(time.time())}_{random.randint(0, 9999):04d}"
             while self._task_path(task_id).exists() \
                     or self._archive_path(task_id).exists():
@@ -162,15 +312,32 @@ class TaskSystem:
                 id=task_id, subject=subject, description=description,
                 status="pending", owner=None, blockedBy=blockedBy or [],
                 idempotency_key=key, created_at=now, updated_at=now,
+                kind=kind, scope=scope, target_files=targets,
+                acceptance=acceptance, fingerprint=fingerprint,
+                duplicate_of=similar[0][0] if similar else None,
+                dedupe_score=similar[0][2] if similar else 0.0,
             )
             self._save_unlocked(task)
-            return task
+            TEAM_METRICS.record("task_created")
+            return CreateResult(task=task, created=True, reason="created",
+                                similar=similar)
+
+    def create_task(self, subject: str, description: str = "",
+                    blockedBy: list[str] | None = None,
+                    idempotency_key: str | None = None,
+                    scope: str = "", target_files=None,
+                    acceptance: str = "",
+                    kind: str = "work") -> Task:
+        return self.create_task_result(
+            subject, description, blockedBy, idempotency_key, scope,
+            target_files, acceptance, kind).task
 
     def find_by_idempotency_key(self, key: str) -> Task | None:
         value = self._validate_idempotency_key(key)
         if value is None:
             return None
-        return self._find_idempotency_unlocked(value)
+        with self._locked():
+            return self._find_idempotency_unlocked(value)
 
     def save_task(self, task: Task):
         task.updated_at = self._now()
@@ -247,9 +414,18 @@ class TaskSystem:
     def can_start(self, task_id: str) -> bool:
         return self._can_start_unlocked(task_id)
 
+    @staticmethod
+    def _lease_lost(task: Task, claim_token: str | None) -> bool:
+        # 不传 token 保留 lead/旧调用兼容;传了 token 就必须匹配当前租约,
+        # 任务被回收/完成后 claim_token 已清空,旧 owner 会在这里被拒绝。
+        return claim_token is not None and claim_token != task.claim_token
+
     def claim_task(self, task_id: str, owner: str = "agent") -> str:
         with self._locked():
             task = self._load_unlocked(task_id)
+            if task.kind != "work":
+                return (f"Task {task_id} has kind '{task.kind}'; "
+                        "only work tasks can be claimed")
             if task.status != "pending":
                 return f"Task {task_id} is {task.status}, cannot claim"
             if task.owner:
@@ -274,17 +450,22 @@ class TaskSystem:
             now = self._now()
             task.owner = owner
             task.status = "in_progress"
+            task.claim_token = uuid.uuid4().hex
             task.lease_until = now + Configs.TASK_LEASE_SECONDS
             task.heartbeat_at = now
             task.updated_at = now
             self._save_unlocked(task)
+            TEAM_METRICS.record("task_claimed")
             Terminal.info("claim", f"{task.subject} → in_progress",
                           Terminal.CYAN)
             return f"Claimed {task.id} ({task.subject})"
 
-    def complete_task(self, task_id: str) -> str:
+    def complete_task(self, task_id: str,
+                      claim_token: str | None = None) -> str:
         with self._locked():
             task = self._load_unlocked(task_id)
+            if self._lease_lost(task, claim_token):
+                return f"Lease lost for task {task_id}; cannot complete"
             if task.status != "in_progress":
                 return f"Task {task_id} is {task.status}, cannot complete"
             now = self._now()
@@ -293,7 +474,9 @@ class TaskSystem:
             task.updated_at = now
             task.lease_until = None
             task.heartbeat_at = None
+            task.claim_token = None
             self._save_unlocked(task)  # status=completed → archive
+            TEAM_METRICS.record("task_completed")
             unblocked = [t.subject for t in self._list_unlocked()
                          if t.status == "pending" and t.blockedBy
                          and self._can_start_unlocked(t.id)]
@@ -304,9 +487,12 @@ class TaskSystem:
             return msg
 
     def fail_task(self, task_id: str, error: str = "",
-                  requeue: bool = True) -> str:
+                  requeue: bool = True,
+                  claim_token: str | None = None) -> str:
         with self._locked():
             task = self._load_unlocked(task_id)
+            if self._lease_lost(task, claim_token):
+                return f"Lease lost for task {task_id}; cannot fail"
             if task.status == "completed":
                 return f"Task {task_id} is completed, cannot fail"
             return self._fail_unlocked(task, error, requeue)
@@ -316,38 +502,48 @@ class TaskSystem:
         task.attempts += 1
         task.last_error = (error or "")[:500]
         task.owner = None
+        task.claim_token = None
         task.lease_until = None
         task.heartbeat_at = None
         task.updated_at = self._now()
         if requeue and task.attempts < Configs.TASK_MAX_ATTEMPTS:
             task.status = "pending"
+            TEAM_METRICS.record("task_requeued")
             message = (f"Requeued {task.id} after failure "
                        f"(attempt {task.attempts})")
         else:
             task.status = "failed"
+            TEAM_METRICS.record("task_failed")
             message = (f"Failed {task.id} after {task.attempts} attempt(s): "
                        f"{task.last_error}")
         self._save_unlocked(task)
         return message
 
-    def release_task(self, task_id: str) -> str:
+    def release_task(self, task_id: str,
+                     claim_token: str | None = None) -> str:
         with self._locked():
             task = self._load_unlocked(task_id)
+            if self._lease_lost(task, claim_token):
+                return f"Lease lost for task {task_id}; cannot release"
             if task.status == "completed":
                 return f"Task {task_id} is completed, cannot release"
             if task.status == "pending" and not task.owner:
                 return f"Task {task_id} is already pending"
             task.status = "pending"
             task.owner = None
+            task.claim_token = None
             task.lease_until = None
             task.heartbeat_at = None
             task.updated_at = self._now()
             self._save_unlocked(task)
             return f"Released {task_id} back to pending"
 
-    def heartbeat(self, task_id: str) -> bool:
+    def heartbeat(self, task_id: str,
+                  claim_token: str | None = None) -> bool:
         with self._locked():
             task = self._load_unlocked(task_id)
+            if self._lease_lost(task, claim_token):
+                return False
             if task.status != "in_progress":
                 return False
             now = self._now()
@@ -357,16 +553,22 @@ class TaskSystem:
             self._save_unlocked(task)
             return True
 
-    def reclaim_expired(self) -> list[str]:
-        """把租约过期的 in_progress 任务重排队/标记失败,返回任务 ID。"""
+    def reclaim_expired(self, live_owners=None,
+                        grace_seconds: float = 0.0) -> list[str]:
+        """回收过期租约;live_owners 中的 owner 跳过,grace 留出宽限。"""
         reclaimed = []
         now = self._now()
+        live = set(live_owners or ())
+        cutoff = now - max(0.0, float(grace_seconds or 0.0))
         with self._locked():
             for task in self._list_unlocked():
-                if (task.status == "in_progress"
-                        and task.lease_until is not None
-                        and task.lease_until < now):
+                if task.status != "in_progress" or task.lease_until is None:
+                    continue
+                if task.owner and task.owner in live:
+                    continue
+                if task.lease_until < cutoff:
                     self._fail_unlocked(task, "task lease expired")
+                    TEAM_METRICS.record("task_reclaimed")
                     reclaimed.append(task.id)
         for task_id in reclaimed:
             Terminal.info("task", f"reclaimed expired lease: {task_id}",
@@ -381,19 +583,121 @@ class TaskSystem:
             self._save_unlocked(task)
             return f"Task {task_id} worktree set to {worktree_name}"
 
+    _UPDATE_STRING_FIELDS = {
+        "base_ref", "base_sha", "integration_worktree",
+        "integration_branch", "acceptance_command", "merge_status",
+        "merged_commit", "approved_by", "review_status", "reviewed_by",
+        "reviewed_head", "preflight_base_sha", "preflight_output",
+        "apply_output",
+    }
+    _UPDATE_LIST_FIELDS = {"source_tasks", "conflict_files",
+                           "review_findings"}
+    _UPDATE_INT_FIELDS = {"preflight_exit_code", "apply_exit_code"}
+    _UPDATE_FLOAT_FIELDS = {"approved_at", "reviewed_at"}
+
+    def update_fields(self, task_id: str, **fields) -> str:
+        allowed = (self._UPDATE_STRING_FIELDS | self._UPDATE_LIST_FIELDS
+                   | self._UPDATE_INT_FIELDS | self._UPDATE_FLOAT_FIELDS
+                   | {"source_heads"})
+        unknown = set(fields) - allowed
+        if unknown:
+            raise ValueError(f"cannot update task fields: {sorted(unknown)}")
+        with self._locked():
+            task = self._load_unlocked(task_id)
+            for key, value in fields.items():
+                if key in self._UPDATE_STRING_FIELDS:
+                    value = str(value or "")[:20000]
+                elif key in self._UPDATE_LIST_FIELDS:
+                    value = [str(item)[:2000] for item in (value or [])][:200]
+                elif key in self._UPDATE_INT_FIELDS:
+                    value = None if value is None else int(value)
+                elif key in self._UPDATE_FLOAT_FIELDS:
+                    value = None if value is None else float(value)
+                elif key == "source_heads":
+                    value = {str(k): str(v) for k, v in (value or {}).items()}
+                setattr(task, key, value)
+            task.updated_at = self._now()
+            self._save_unlocked(task)
+        return f"Updated {task_id}: {', '.join(sorted(fields))}"
+
+    def begin_review(self, task_id: str, reviewer: str = "reviewer",
+                     stale_seconds: float = 600.0) -> tuple[bool, str]:
+        with self._locked():
+            task = self._load_unlocked(task_id)
+            if task.status == "pending":
+                return False, "task is pending"
+            now = self._now()
+            if (task.review_status == "reviewing" and task.reviewed_at
+                    and now - task.reviewed_at < stale_seconds):
+                return False, "review already in progress"
+            task.review_status = "reviewing"
+            task.reviewed_by = reviewer
+            task.reviewed_at = now
+            task.updated_at = now
+            self._save_unlocked(task)
+            return True, ""
+
+    def complete_integration(self, task_id: str) -> str:
+        """集成任务由 lead 工具完成后归档(pending → completed)。"""
+        with self._locked():
+            task = self._load_unlocked(task_id)
+            if task.kind != "integration":
+                return f"Task {task_id} is not an integration task"
+            if task.status == "completed":
+                return f"Task {task_id} is already completed"
+            now = self._now()
+            task.status = "completed"
+            task.completed_at = now
+            task.updated_at = now
+            task.claim_token = None
+            self._save_unlocked(task)
+            TEAM_METRICS.record("task_completed")
+        return f"Completed integration {task_id}"
+
+    def set_review(self, task_id: str, status: str,
+                   findings: list[str] | None = None,
+                   reviewer: str = "reviewer",
+                   reviewed_head: str = "") -> str:
+        if status not in ("pass", "fail", "blocked"):
+            raise ValueError(f"invalid review status: {status}")
+        with self._locked():
+            task = self._load_unlocked(task_id)
+            task.review_status = status
+            task.review_findings = [str(item)[:2000]
+                                    for item in (findings or [])][:50]
+            task.reviewed_by = reviewer
+            task.reviewed_head = str(reviewed_head or "")[:200]
+            task.reviewed_at = self._now()
+            task.updated_at = task.reviewed_at
+            self._save_unlocked(task)
+        return f"Review {status} for {task_id}"
+
     # ── 工具层(供 ToolRegistry 注册) ──
 
     def run_create_task(self, subject: str, description: str = "",
                         blockedBy: list[str] | None = None,
-                        idempotency_key: str | None = None) -> str:
-        existing = (self.find_by_idempotency_key(idempotency_key)
-                    if idempotency_key else None)
-        task = self.create_task(subject, description, blockedBy,
-                                idempotency_key)
+                        idempotency_key: str | None = None,
+                        scope: str = "", target_files=None,
+                        acceptance: str = "") -> str:
+        try:
+            result = self.create_task_result(
+                subject, description, blockedBy, idempotency_key,
+                scope=scope, target_files=target_files,
+                acceptance=acceptance)
+        except (TypeError, ValueError) as exc:
+            return f"Error: {exc}"
+        task = result.task
         deps = f" (blockedBy: {', '.join(blockedBy)})" if blockedBy else ""
         Terminal.info("create", f"{task.subject}{deps}", Terminal.BLUE)
-        prefix = "Existing" if existing is not None else "Created"
-        return f"{prefix} {task.id}: {task.subject}{deps}"
+        prefix = "Reused" if result.reused else "Created"
+        message = f"{prefix} {task.id}: {task.subject}{deps}"
+        if result.reason == "fingerprint":
+            message += " (fingerprint match)"
+        if result.similar:
+            parts = [f"{task_id} {title} ({score:.2f})"
+                     for task_id, title, score in result.similar[:5]]
+            message += "\nSimilar: " + "; ".join(parts)
+        return message
 
     def run_list_tasks(self, include_completed: bool = False) -> str:
         tasks = self.list_tasks(include_completed=include_completed)
@@ -442,7 +746,11 @@ class TaskSystem:
                  "properties": {"subject": {"type": "string"},
                                 "description": {"type": "string"},
                                 "blockedBy": {"type": "array", "items": {"type": "string"}},
-                                "idempotency_key": {"type": "string"}},
+                                "idempotency_key": {"type": "string"},
+                                "scope": {"type": "string"},
+                                "target_files": {"type": "array",
+                                                 "items": {"type": "string"}},
+                                "acceptance": {"type": "string"}},
                  "required": ["subject"]}),
             make_function_tool("list_tasks", "List tasks.",
                 {"type": "object",

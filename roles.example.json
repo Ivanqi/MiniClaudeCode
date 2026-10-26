@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "roles": {
+    "developer": {
+      "description": "实现任务并把改动限制在分配的 worktree 内。",
+      "responsibilities": ["实现任务目标", "运行相关测试", "报告变更与验证结果"],
+      "allowed_tools": [
+        "bash", "read_file", "write_file", "edit_file", "glob",
+        "send_message", "submit_plan", "list_tasks", "claim_task",
+        "complete_task"
+      ],
+      "write_scope": "worktree",
+      "read_only": false,
+      "bash_mode": "full",
+      "allow_mcp": false,
+      "max_tasks": 20,
+      "acceptance": ["改动文件限定在 worktree", "给出测试/验证结果", "完成时输出摘要"],
+      "can_claim": true
+    }
+  }
+}

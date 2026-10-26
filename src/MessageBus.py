@@ -14,6 +14,7 @@ from pathlib import Path
 from src.Configs import Configs
 from src.FileLock import atomic_write_text, ensure_private_dir, file_lock
 from src.SecurityPolicy import redact, validate_agent_name
+from src.TeamMetrics import TEAM_METRICS
 from src.Terminal import Terminal
 
 MAX_MESSAGE_CHARS = 100_000
@@ -121,6 +122,7 @@ class MessageBus:
                     self._ledger_path(to_agent, "sent")))
                 if (message_id in seen or message_id in sent
                         or self._inbox_has_id(to_agent, message_id)):
+                    TEAM_METRICS.record("message_deduped")
                     Terminal.info("bus", f"duplicate message_id skipped: "
                                   f"{message_id}", Terminal.YELLOW)
                     return message_id
@@ -130,6 +132,7 @@ class MessageBus:
             if explicit:
                 self._record_ledger(
                     self._ledger_path(to_agent, "sent"), message_id)
+        TEAM_METRICS.record("message_sent")
         Terminal.info("bus", f"{from_agent} → {to_agent}: "
                              f"({msg_type}) {redact(text[:50])}", Terminal.YELLOW)
         return message_id
@@ -193,6 +196,8 @@ class MessageBus:
             if batch_seen:
                 self._record_ledger(seen_path, list(batch_seen))
         delivered.sort(key=lambda item: item.get("ts", 0))
+        if delivered:
+            TEAM_METRICS.record("message_delivered", len(delivered))
         return delivered
 
 

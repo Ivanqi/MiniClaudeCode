@@ -20,3 +20,4 @@ local_model/__pycache__/
 .transcripts/
 .task_outputs/
 .memory/
+.team/

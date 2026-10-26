@@ -18,10 +18,13 @@ from src.ContextCompact import ContextCompact
 from src.CronScheduler import CRON_SCHEDULER
 from src.HookSystem import HOOK_SYSTEM
 from src.LlmClient import (assistant_message, tool_message, user_message)
+from src.IntegrationSystem import IntegrationSystem
+from src.LeadMonitor import LeadMonitor
 from src.Memories import Memories
 from src.MemoryStore import MemoryStore
 from src.ModelRouter import ModelRouter, RouterDecision
 from src.McpSystem import MCP_SYSTEM
+from src.ReviewSystem import ReviewSystem
 from src.PromptBuilder import PromptBuilder
 from src.ProtocolSystem import PROTOCOL
 from src.RecoverySystem import (RecoveryState, is_prompt_too_long_error,
@@ -31,6 +34,7 @@ from src.Sandbox import Sandbox
 from src.SkillSystem import SKILL_SYSTEM
 from src.SubagentSystem import SubagentSystem
 from src.TaskSystem import TASK_SYSTEM
+from src.TeamMetrics import TEAM_METRICS
 from src.TeammateSystem import TeammateSystem
 from src.Terminal import Terminal
 from src.ToolDispatcher import ToolDispatcher
@@ -76,10 +80,23 @@ class AgentLoop:
         self.dispatcher = dispatcher or ToolDispatcher(
             basic=self.basic, hooks=self.hooks, audit=self.audit,
             approval=self.approval, sandbox=self.sandbox)
+        self.metrics = TEAM_METRICS
         self.teammates = TeammateSystem(
-            client, router=self.router, dispatcher=self.dispatcher)
+            client, router=self.router, dispatcher=self.dispatcher,
+            metrics=self.metrics)
         self.subagents = SubagentSystem(
-            client, router=self.router, dispatcher=self.dispatcher)
+            client, router=self.router, dispatcher=self.dispatcher,
+            metrics=self.metrics)
+        self.review = ReviewSystem(
+            self.subagents, tasks=TASK_SYSTEM, worktrees=WORKTREE_SYSTEM,
+            metrics=self.metrics)
+        self.integration = IntegrationSystem(
+            tasks=TASK_SYSTEM, worktrees=WORKTREE_SYSTEM,
+            dispatcher=self.dispatcher, metrics=self.metrics)
+        self.lead_monitor = LeadMonitor(
+            protocol=self.teammates.protocol, tasks=self.teammates.tasks,
+            teammates=self.teammates.teammates, bus=self.teammates.bus,
+            metrics=self.metrics)
 
         # 工具注册表:各系统自持工具定义与处理器,在此聚合。
         self.tool_registry = ToolRegistry(self.mcp)
@@ -87,7 +104,7 @@ class AgentLoop:
         for system in (self.basic, TASK_SYSTEM, WORKTREE_SYSTEM, SKILL_SYSTEM,
                        self.cron, self.mcp, self.teammates, self.subagents,
                        self.background, self.memory, self.transcripts,
-                       self.compact):
+                       self.review, self.integration, self.compact):
             self.tool_registry.register_system(system)
 
         self.rounds_since_todo = 0
@@ -235,6 +252,7 @@ class AgentLoop:
                 self.trajectory.log_turn(messages, state, error=str(e))
                 return
             budget.record_usage(getattr(response, "usage", None))
+            self.metrics.add_usage(getattr(response, "usage", None), "lead")
 
             # ── 质量信号:本地小模型失败 → 升级 API 重试本轮(不追加坏消息) ──
             if response.has_parse_error:
@@ -450,6 +468,14 @@ class AgentLoop:
     def run_cli(self):
         self._startup_maintenance()
         self.cron.start()
+        self.lead_monitor.start()
+        try:
+            self._run_cli_loop()
+        finally:
+            self.lead_monitor.stop()
+            self.metrics.flush()
+
+    def _run_cli_loop(self):
         Terminal.print("MiniClaudeCode: coding agent")
         Terminal.print("Enter a question, press Enter to send. Type q to quit.\n")
         history: list[dict] = []

@@ -11,11 +11,14 @@ from src.BasicOper import BASIC_OPER, BasicOper
 from src.Configs import Configs
 from src.LlmClient import (assistant_message, make_function_tool, tool_message,
                            user_message)
+from src.Roles import RoleSpec
+from src.TaskSystem import TASK_SYSTEM, TaskSystem
+from src.TeamMetrics import TEAM_METRICS, TeamMetrics
 from src.Terminal import Terminal
 from src.ToolDispatcher import ToolDispatcher
-from src.ToolPolicy import (SUBAGENT_LOCAL_TOOLS, TurnBudget,
-                            skipped_tool_messages, subagent_local_policy,
-                            subagent_policy)
+from src.ToolPolicy import (BASH_DENY, SUBAGENT_LOCAL_TOOLS, SUBAGENT_TOOLS,
+                            ToolPolicy, TurnBudget, skipped_tool_messages,
+                            subagent_local_policy, subagent_policy)
 
 SUB_ROUND_LIMIT = 30
 
@@ -32,11 +35,15 @@ class SubagentSystem:
     def __init__(self, client, router=None,
                  hooks=None,
                  basic: BasicOper = BASIC_OPER,
-                 dispatcher: ToolDispatcher | None = None):
+                 dispatcher: ToolDispatcher | None = None,
+                 metrics: TeamMetrics | None = None,
+                 tasks: TaskSystem = TASK_SYSTEM):
         self.client = client
         self.router = router  # None 表示不路由,直接用 self.client(向后兼容)
         self.hooks = hooks
         self.basic = basic
+        self.metrics = metrics or TEAM_METRICS
+        self.tasks = tasks
         self.dispatcher = dispatcher or ToolDispatcher(
             basic=self.basic, hooks=self.hooks)
 
@@ -72,6 +79,8 @@ class SubagentSystem:
                 {"type": "object",
                  "properties": {"pattern": {"type": "string"}},
                  "required": ["pattern"]}),
+            make_function_tool("list_tasks", "List tasks (read-only).",
+                {"type": "object", "properties": {}, "required": []}),
         ]
 
     def sub_handlers(self) -> dict:
@@ -79,24 +88,54 @@ class SubagentSystem:
             "bash": self.basic.run_bash, "read_file": self.basic.run_read,
             "write_file": self.basic.run_write, "edit_file": self.basic.run_edit,
             "glob": self.basic.run_glob,
+            "list_tasks": lambda: self.tasks.run_list_tasks(),
         }
 
-    def tools_for(self, local: bool) -> list[dict]:
+    def tools_for(self, local: bool, role_spec: RoleSpec | None = None,
+                  tools_override=None) -> list[dict]:
         tools = self.sub_tools()
-        if not local:
-            return tools
+        if role_spec is not None:
+            names = set(role_spec.allowed_tools)
+        elif local:
+            names = set(SUBAGENT_LOCAL_TOOLS)
+        else:
+            names = set(SUBAGENT_TOOLS)
+        if tools_override is not None:
+            names &= set(tools_override)
+        if local:
+            names &= set(SUBAGENT_LOCAL_TOOLS)
         return [tool for tool in tools
-                if tool["function"]["name"] in SUBAGENT_LOCAL_TOOLS]
+                if tool["function"]["name"] in names]
 
-    @staticmethod
-    def policy_for(local: bool):
-        return subagent_local_policy() if local else subagent_policy()
+    def policy_for(self, local: bool, role_spec: RoleSpec | None = None,
+                   base_dir=None):
+        if role_spec is None:
+            return subagent_local_policy() if local else subagent_policy()
+        if local:
+            return ToolPolicy(
+                role=role_spec.name,
+                allowed=frozenset(set(role_spec.allowed_tools)
+                                  & set(SUBAGENT_LOCAL_TOOLS)),
+                read_only=True,
+                writable_roots=(),
+                force_cwd=base_dir or None,
+                bash_mode=BASH_DENY,
+                allow_mcp=False,
+            )
+        return role_spec.to_policy(base_dir)
 
     # ── 子代理循环 ──
 
-    def spawn_subagent(self, description: str) -> str:
+    def spawn_subagent(self, description: str,
+                       role_spec: RoleSpec | None = None,
+                       base_dir=None, tools_override=None,
+                       usage_sink=None, prefer_api: bool = False) -> str:
         messages = [user_message(description)]
-        handlers = self.sub_handlers()
+        all_handlers = self.sub_handlers()
+        system = ((role_spec.prompt() + f"\nWork directory: {base_dir}")
+                  if role_spec is not None and base_dir
+                  else role_spec.prompt() if role_spec is not None
+                  else self.SUB_SYSTEM)
         budget = TurnBudget(
             max_rounds=SUB_ROUND_LIMIT,
             max_tool_calls=Configs.SUBAGENT_MAX_TOOL_CALLS,
@@ -113,7 +152,8 @@ class SubagentSystem:
                 break
 
             local = False
-            if self.router is not None:
+            use_router = self.router is not None and not prefer_api
+            if use_router:
                 decision = self.router.route(
                     messages, caller="subagent", flags={"escalated": escalated})
                 client, model, max_tokens = self.router.apply(
@@ -122,17 +162,28 @@ class SubagentSystem:
             else:
                 max_tokens = Configs.SUBAGENT_MAX_TOKENS
 
-            tools = self.tools_for(local)
-            policy = self.policy_for(local)
+            tools = self.tools_for(local, role_spec, tools_override)
+            tool_names = {tool["function"]["name"] for tool in tools}
+            handlers = {name: handler for name, handler in all_handlers.items()
+                        if name in tool_names}
+            policy = self.policy_for(local, role_spec, base_dir)
             budget.record_round()
             try:
                 response = client.create(
-                    messages, system=self.SUB_SYSTEM, tools=tools,
+                    messages, system=system, tools=tools,
                     max_tokens=max_tokens, model=model)
             except Exception as exc:
                 return (f"Error: Subagent failed: "
                         f"{type(exc).__name__}: {exc}")
             budget.record_usage(getattr(response, "usage", None))
+            if usage_sink is not None:
+                try:
+                    usage_sink(getattr(response, "usage", None))
+                except Exception:
+                    pass
+            else:
+                self.metrics.add_usage(getattr(response, "usage", None),
+                                       "subagent")
 
             if response.has_parse_error:
                 # 丢弃坏调用;本地模型直接升级,不追加坏消息
@@ -140,8 +191,7 @@ class SubagentSystem:
                                        if not c.parse_error]
                 Terminal.info("parse-error", "subagent dropped malformed call",
                               Terminal.RED)
-                if self.router is not None and decision is not None \
-                        and decision.local:
+                if use_router and decision is not None and decision.local:
                     escalated = True
                     Terminal.info("escalate", "subagent parse error → API",
                                   Terminal.RED)
@@ -176,7 +226,7 @@ class SubagentSystem:
         summary = self._last_text(messages)
         if closing_reason:
             final = self._final_summary(messages, client, model,
-                                        closing_reason)
+                                        closing_reason, system=system)
             summary = final or summary
             note = f"[subagent budget reached: {closing_reason}]"
             return f"{summary}\n{note}" if summary else note
@@ -192,13 +242,14 @@ class SubagentSystem:
         return ""
 
     def _final_summary(self, messages: list, client, model,
-                       reason: str) -> str:
+                       reason: str, system: str | None = None) -> str:
         """预算耗尽时做一次无工具总结(不追加副作用消息到返回历史)。"""
         prompt = (f"[Subagent budget reached: {reason}. Based on the work so "
                   "far, return a concise final summary. Do not call tools.]")
         try:
             response = client.create(
-                messages + [user_message(prompt)], system=self.SUB_SYSTEM,
+                messages + [user_message(prompt)],
+                system=system or self.SUB_SYSTEM,
                 tools=None, max_tokens=Configs.SUBAGENT_MAX_TOKENS,
                 model=model)
             return (response.content or "").strip()

@@ -4,7 +4,7 @@ DeepSeek 驱动的命令行编码智能体——一个 Claude Code 的实现。�
 
 ## 功能特性
 
-- **工具调用循环**：模型通过 function calling 驱动文件操作、bash、任务看板、worktree、cron、技能加载、多代理协作、记忆检索等 35 个内置工具 + 动态 MCP 工具
+- **工具调用循环**：模型通过 function calling 驱动文件操作、bash、任务看板、worktree、cron、技能加载、多代理协作、记忆检索等 41 个内置工具 + 动态 MCP 工具
 - **分层上下文压缩**：超大工具结果落盘 → 消息数裁剪 → 旧工具结果折叠 → LLM 摘要压缩 → 上下文超长应急压缩，每层保护 `tool_calls`/`tool` 配对完整性
 - **多代理协作**：lead 可 spawn 自治队友线程，通过文件邮箱通信；队友空闲时自动认领无主任务；**计划审批闸门**——队友提交计划后暂停一切模型/工具步骤，直到 lead 审批
 - **聚焦子代理**：`task` 工具生成最小工具集的子代理，循环执行后只回传文本摘要
@@ -17,6 +17,9 @@ DeepSeek 驱动的命令行编码智能体——一个 Claude Code 的实现。�
 - **统一记忆契约（MemoryStore）**：`MemoryItem` 统一 namespace/key/content/tags/source/confidence/version/hash/expiry；`(namespace,key)` + 内容 hash 去重，同 key 更新而不是追加；`remember/recall/forget` 工具走统一策略与审计；`.memory/MEMORY.md` 只做指针索引，注入只取 top_k 检索结果
 - **情景记忆与归档**：transcript 唯一命名、脱敏、原子写；`search_transcripts`/`recall_transcript` 可检索 active 与 gzip archive；retention 对 transcripts/tool_outputs/backups 过期压缩归档，`.training_data` 默认不自动清理
 - **案例/任务/技能/邮箱去重**：Catering 案例按 `case_id + content_hash` 升 version；完成任务归档到 `.tasks/archive/`，`create_task` 支持 `idempotency_key`；同名 skill 直接报错；邮箱消息带 `message_id` + sent/delivered ledger
+- **角色化多代理治理**：`RoleSpec` 定义职责/允许工具/写范围/验收标准/任务上限，`roles.json` 可覆盖但安全不变量不可关闭；`review_task` 用只读 reviewer 子代理独立验收
+- **任务去重与合并队列**：subject+scope+targets 精确指纹自动复用、相似任务警告；`seal_worktree` 封存队友改动，`plan/preflight/apply` 按依赖顺序试合并并跑回归，apply 必须人工确认，不自动改 main
+- **团队健康与预算**：LeadMonitor 负责协议过期、孤儿任务回收、stale 队友 shutdown；`team_status` 暴露团队计数/预算/任务板；每任务 claim token 防止旧 owner 覆盖新 owner
 - **状态全部落盘**：任务、cron、worktree 事件、transcript、记忆索引、邮箱均为磁盘文件；任务带租约/心跳，邮箱原子消费，写操作有 `.backups/` 备份与 `.audit/` 审计
 
 ## 整体架构
@@ -39,7 +42,7 @@ DeepSeek 驱动的命令行编码智能体——一个 Claude Code 的实现。�
                         └────────────────────────────────────────────┘
 ```
 
-代码按职责分为四层、35 个模块（`src/`），层间单向依赖：
+代码按职责分为四层、40 个模块（`src/`），层间单向依赖：
 
 ### 基础层
 
@@ -83,6 +86,11 @@ DeepSeek 驱动的命令行编码智能体——一个 Claude Code 的实现。�
 | `MemoryStore` | 统一记忆契约：upsert/去重/search/touch/expire/forget/MEMORY.md 索引；remember/recall/forget 工具 |
 | `TranscriptStore` | 情景记忆：唯一 transcript 写入、episodic 摘要、active/gzip 检索与 recall |
 | `Retention` | 情景数据 retention：gzip/tar.gz 归档、保护新文件、失败保留源、审计 |
+| `Roles` | RoleSpec/roles.json 校验、角色化工具/写范围/沙箱策略 |
+| `ReviewSystem` | 只读 reviewer 子代理、结构化 verdict、review 字段 |
+| `IntegrationSystem` | merge queue：plan/preflight/apply、冲突捕获、验收、人工门 |
+| `TeamMetrics` | 团队计数/预算/team_status、`.team/metrics.json` 快照 |
+| `LeadMonitor` | 协议过期、孤儿任务回收、stale 队友 shutdown、指标 flush |
 | `Memories` | 轮次上下文组装：top_k 记忆检索、MCP 连接、活跃队友、任务看板摘要 |
 | `ToolRegistry` | 工具注册表：聚合各系统工具与 MCP 工具；重名/缺 handler 检测 |
 
@@ -155,7 +163,7 @@ lead 与队友间的 shutdown / plan_approval 请求携带 `request_id`，响应
 
 ### 8. 可测试性
 
-状态类（`TaskSystem` / `WorktreeSystem` / `ContextCompact` / `CronScheduler` / `AuditLog` / `Sandbox` / `MemoryStore` / `TranscriptStore` / `Retention`）均支持构造函数注入目录或时钟，测试不碰真实环境。272 个用例全部离线运行：`test_core.py` 覆盖纯逻辑，`test_agent_loop.py` 用 `FakeClient` 按脚本回放，`test_dispatcher.py` / `test_budget.py` 覆盖安全与预算收尾，`test_memory_store.py` / `test_memory_tools.py` 覆盖记忆契约与策略，`test_cases.py` / `test_tasks_memory.py` / `test_transcripts.py` / `test_retention.py` 覆盖各记忆落点。
+状态类（`TaskSystem` / `WorktreeSystem` / `ContextCompact` / `CronScheduler` / `AuditLog` / `Sandbox` / `MemoryStore` / `TranscriptStore` / `Retention` / `Roles` / `TeamMetrics` / `LeadMonitor` / `ReviewSystem` / `IntegrationSystem`）均支持构造函数注入目录或时钟，测试不碰真实环境。332 个用例全部离线运行：`test_core.py` 覆盖纯逻辑，`test_agent_loop.py` 用 `FakeClient` 按脚本回放，`test_dispatcher.py` / `test_budget.py` 覆盖安全与预算收尾，`test_memory_store.py` / `test_memory_tools.py` 覆盖记忆契约与策略，`test_cases.py` / `test_tasks_memory.py` / `test_transcripts.py` / `test_retention.py` 覆盖各记忆落点；`test_roles.py` / `test_task_dedupe.py` / `test_protocol.py` / `test_lead_monitor.py` / `test_review_system.py` / `test_integration_system.py` 覆盖多代理治理与合并队列。
 
 ### 9. 线程模型
 
@@ -180,7 +188,17 @@ cron 调度线程、cron 自动执行线程、后台任务线程、队友线程�
 - **任务**：完成项移动到 `.tasks/archive/`，`load/get/can_start` 归档感知；`list_tasks` 默认只看活跃项；`board_summary` 注入活跃 + 最近完成。
 - **技能/邮箱**：同名 skill 启动报错；邮箱消息带 `message_id`，sent/delivered ledger 做有界去重。
 
-### 12. 沙箱与 MCP 信任模型
+### 12. 角色化多代理治理与合并队列
+
+- **RoleSpec**：`developer`（worktree 可写、可认领）与 `reviewer`（read_file/glob/list_tasks、只读、不可认领）；`roles.json` 覆盖/新增角色，但未知工具、reviewer 可写、worktree 全量 bash 关闭沙箱等会被拒绝。
+- **任务指纹**：subject+scope+target_files+blockedBy+acceptance 规范化后 SHA-256；精确命中只复用 active work 任务，相似度 ≥ 阈值只警告并记录 `duplicate_of`。
+- **claim token**：每次认领生成 UUID；complete/fail/release/heartbeat 传 token，任务被回收/完成后旧 owner 会得到 `Lease lost`，不会覆盖新 owner。
+- **计划与孤儿**：plan 请求 TTL + 队友侧 `PLAN_APPROVAL_TIMEOUT`；超时 cancel 并释放任务（不增加 attempts）；LeadMonitor 跳过 live owner 回收过期租约，向 stale 队友发 shutdown，不消费 lead 邮箱。
+- **合并队列**：队友先 `seal_worktree` 提交；`plan_integration` 按依赖拓扑建 integration 任务；`preflight_integration` 在一次性 worktree 试合并并跑验收；`apply_integration` 人工确认后创建 `integration/<task>` 分支，失败 abort/reset，成功保留分支，绝不 push/改 main。
+- **Reviewer**：`review_task` 只读子代理，prompt 注入有界 git status/diff，必须返回 JSON verdict+evidence；非法输出记为 blocked，绝不 pass。
+- **团队指标/预算**：`TeamMetrics` 记录 claim/complete/fail/reclaim、message dedupe、plan timeout、review、integration、token；`team_status` 展示；预算默认 0 不限，spawn/claim 原子 reserve/rollback。
+
+### 13. 沙箱与 MCP 信任模型
 
 - bash 默认 `SANDBOX_MODE=auto`：有 bwrap 时只读根、只写工作区/worktree、无网络；网络命令需确认后才放开 `--unshare-net`；没有 bwrap 时降级并告警（黑名单不是安全边界），`require` 模式直接失败。
 - MCP 工具按 `readOnlyHint` / `destructiveHint` 注解处理；无注解工具保守要求确认；破坏性工具在非交互/队友线程直接拒绝；调用带超时与输出上限。mock 服务器与真实服务器的描述标记都会参与推断。
@@ -231,6 +249,13 @@ CLI 中直接输入问题回车发送，`q` / `exit` / 空行退出。
 | `RETENTION_BACKUPS_DAYS` / `RETENTION_BACKUPS_MAX` | | `30` / `200` | 备份目录归档策略 |
 | `RETENTION_TRAINING_DATA` / `RETENTION_TRAINING_DAYS` / `RETENTION_TRAINING_MAX` | | `0` / `90` / `5000` | 训练数据默认不自动清理;显式开启后归档 |
 | `TRANSCRIPT_SEARCH_MAX_FILES` / `TRANSCRIPT_SEARCH_MAX_BYTES` / `TRANSCRIPT_RECALL_MAX_BYTES` | | `200` / `2000000` / `100000` | transcript 搜索/召回上限 |
+| `MAX_ROLE_SPECS` / `PLAN_APPROVAL_TIMEOUT_SECONDS` | | `64` / `300` | 角色数量上限、计划审批等待上限 |
+| `PROTOCOL_REQUEST_TTL_SECONDS` / `PROTOCOL_MAX_PENDING` | | `600` / `500` | 协议请求 TTL 与 pending 上限 |
+| `TEAM_MONITOR_INTERVAL_SECONDS` / `TEAMMATE_STALE_SECONDS` / `TASK_HEARTBEAT_INTERVAL_SECONDS` / `TEAM_RECLAIM_GRACE_SECONDS` | | `5` / `900` / `60` / `30` | LeadMonitor 与租约回收 |
+| `TASK_DEDUPE_FUZZY_THRESHOLD` | | `0.75` | 相似任务警告阈值(不会自动合并) |
+| `TEAM_MAX_TOKENS` / `TEAM_MAX_SPAWNS` / `TEAM_MAX_TASKS` / `TEAM_MAX_WALL_SECONDS` | | `0` / `0` / `0` / `0` | 团队预算;0=不限制,进程会话内生效 |
+| `REVIEW_ALLOW_LOCAL` / `REVIEW_MAX_DIFF_CHARS` / `REVIEW_MAX_FINDINGS` | | `0` / `20000` / `20` | Reviewer 模型与输出上限 |
+| `INTEGRATION_REQUIRE_REVIEW` / `INTEGRATION_MAX_SOURCES` / `INTEGRATION_TIMEOUT_SECONDS` | | `0` / `20` / `600` | 合并队列审查门与资源上限 |
 
 **混合路由**（`ModelRouter`）：不配置 `LOCAL_*` 时退化为纯 API 行为。配置后按调用点静态路由（摘要、探索子代理 → 本地；长时队友 → API），主循环走保守 AND 规则——只有"明确简单"的查询（短消息、信息查询意图、无动作/复杂标记、上下文不超过阈值）才走本地小模型；纯问答会剥离工具集，其余本地调用使用**只读精简工具集**（`read_file`/`glob`/`list_tasks`/`get_task`/`list_crons`/`load_skill`，无 bash/写操作/MCP，Phase 4）。本地模型的质量信号（工具参数解析失败、空回复、length 截断、工具报错、同参数空转）触发**整 turn 升级 API**，升级后的历史不携带失败消息。
 
@@ -254,13 +279,13 @@ conda run -n llama python local_model/server.py \
 python -m unittest discover -s tests -v
 ```
 
-272 个用例全通过：
+332 个用例全通过：
 
 - **test_core.py（31 个）**：cron 表达式校验与匹配、任务生命周期与依赖阻塞、DeepSeek 消息/工具格式构造与往返、错误分类、压缩预算与配对保护、工具注册表合并（内置 + MCP）、worktree 名称校验、文件工具与路径沙箱
 - **test_agent_loop.py（2 个）**：用 `FakeClient` 离线跑通完整主循环——验证工具确实执行、tool 消息与 tool_calls 配对回传、system prompt 注入、`length` 截断升级 max_tokens 后成功收尾
 - **test_model_router.py（24 个）**：路由决策、静态调用点、模式开关、升级阶梯、本地只读工具集、轨迹收集
 - **test_catering.py（39 个）**：LMDI 拆解、数据源校验、告警扫描、ToolGuard、工作流端到端、Reasoner 降级、探索模式权限拦截/步数熔断、状态机、诊断链、评测场景
-- **新增 176 个**：敏感路径/控制面/脱敏/bash 分析、分发器确认与备份、预算收尾、后台完成/失败/取消/超时、任务并发认领与租约、邮箱并发消费、cron 限额、子代理只读、队友失败可见与任务释放、MCP 注解/超时、Catering 写工具逐次确认；记忆方面覆盖 MemoryStore 去重/top_k/touch/归档、任务归档与 idempotency、案例版本/时间衰减、skill 同名报错、message_id/ledger、transcript 搜索/recall、retention gzip/tar 归档
+- **新增 236 个**：敏感路径/控制面/脱敏/bash 分析、分发器确认与备份、预算收尾、后台完成/失败/取消/超时、任务并发认领与租约、邮箱并发消费、cron 限额、子代理只读、队友失败可见与任务释放、MCP 注解/超时、Catering 写工具逐次确认；记忆方面覆盖 MemoryStore 去重/top_k/touch/归档、任务归档与 idempotency、案例版本/时间衰减、skill 同名报错、message_id/ledger、transcript 搜索/recall、retention gzip/tar 归档；治理方面覆盖 RoleSpec/JSON 覆盖/安全不变量、任务指纹与 claim token、协议 TTL/重放、LeadMonitor、reviewer、merge queue 冲突/验收/人工门/base 变更
 
 ## Catering 业务包
 
@@ -279,7 +304,7 @@ python -m Catering.main --agentic "A店客流为什么降?"  # 探索模式：LL
 ```
 MiniClaudeCode/
 ├── main.py                    # 入口：加载 .env → 构建客户端 → 启动 CLI
-├── src/                       # 35 个模块，四层架构
+├── src/                       # 40 个模块，四层架构
 │   ├── Configs.py             #   全局配置
 │   ├── Terminal.py            #   终端输出
 │   ├── LlmClient.py           #   DeepSeek API 适配
@@ -311,6 +336,11 @@ MiniClaudeCode/
 │   ├── TrajectoryLogger.py    #   路由轨迹/训练数据
 │   ├── PromptBuilder.py       #   system prompt 组装
 │   ├── MemoryStore.py         #   统一记忆契约/索引
+│   ├── Roles.py               #   RoleSpec/roles.json
+│   ├── ReviewSystem.py        #   只读 reviewer
+│   ├── IntegrationSystem.py   #   merge queue/Integrator
+│   ├── TeamMetrics.py         #   团队预算/指标
+│   ├── LeadMonitor.py         #   心跳/孤儿回收/协议过期
 │   ├── Memories.py            #   轮次上下文
 │   ├── ActiveTeammates.py     #   活跃队友注册表
 │   ├── ToolRegistry.py        #   工具注册表
@@ -329,7 +359,7 @@ MiniClaudeCode/
 │   ├── Scheduler.py           #   定时自动诊断（复用 CronScheduler）
 │   ├── gen_fixtures.py        #   样本数据生成器（确定性）
 │   └── main.py                #   CLI：--eval/--store/--agentic/--schedule/--tasks
-├── tests/                     # 离线测试用例（272 个）
+├── tests/                     # 离线测试用例（332 个）
 ├── skills/                    # 技能目录（agent-builder / code-review / mcp-builder / pdf / catering-ops / code-analysis-ops）
 ├── .env.example               # 环境变量模板
 └── requirements.txt           # httpx / python-dotenv / pyyaml
@@ -341,15 +371,17 @@ MiniClaudeCode/
 |---|---|
 | BasicOper | `bash` `read_file` `write_file` `edit_file` `glob` `todo_write` |
 | TaskSystem | `create_task` `list_tasks` `get_task` `claim_task` `complete_task` `reclaim_tasks` |
-| WorktreeSystem | `create_worktree` `remove_worktree` `keep_worktree` |
+| WorktreeSystem | `create_worktree` `remove_worktree` `keep_worktree` `seal_worktree` |
 | SkillSystem | `load_skill` |
 | CronScheduler | `schedule_cron` `list_crons` `cancel_cron` |
 | McpSystem | `connect_mcp` + 已连接服务器的 `mcp__server__tool`（动态） |
 | ContextCompact | `compact`（由主循环特殊处理） |
 | MemoryStore | `remember` `recall` `forget` |
 | TranscriptStore | `search_transcripts` `recall_transcript` |
+| ReviewSystem | `review_task` |
+| IntegrationSystem | `plan_integration` `preflight_integration` `apply_integration` |
 | SubagentSystem | `task` |
-| TeammateSystem | `spawn_teammate` `send_message` `check_inbox` `request_shutdown` `request_plan` `review_plan` |
+| TeammateSystem | `spawn_teammate` `send_message` `check_inbox` `team_status` `request_shutdown` `request_plan` `review_plan` |
 | BackgroundTaskSystem | `get_background_task` `cancel_background_task` |
 
 system prompt 的工具清单由 `PromptBuilder` 根据本轮实际路由后的 `ToolRegistry` 工具集生成，不再维护第二份静态清单。

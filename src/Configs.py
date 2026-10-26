@@ -178,6 +178,45 @@ class Configs:
     TRANSCRIPT_RECALL_MAX_BYTES = int(
         os.getenv("TRANSCRIPT_RECALL_MAX_BYTES", "100000"))
 
+    # ── 多代理治理:角色/协议/合并/团队预算 ──
+    MAX_ROLE_SPECS = int(os.getenv("MAX_ROLE_SPECS", "64"))
+    PLAN_APPROVAL_TIMEOUT_SECONDS = int(
+        os.getenv("PLAN_APPROVAL_TIMEOUT_SECONDS", "300"))
+    PROTOCOL_REQUEST_TTL_SECONDS = int(
+        os.getenv("PROTOCOL_REQUEST_TTL_SECONDS", "600"))
+    PROTOCOL_MAX_PENDING = int(os.getenv("PROTOCOL_MAX_PENDING", "500"))
+    TEAM_MONITOR_INTERVAL_SECONDS = int(
+        os.getenv("TEAM_MONITOR_INTERVAL_SECONDS", "5"))
+    TEAMMATE_STALE_SECONDS = int(
+        os.getenv("TEAMMATE_STALE_SECONDS", "900"))
+    LEAD_HEARTBEAT_TIMEOUT_SECONDS = int(
+        os.getenv("LEAD_HEARTBEAT_TIMEOUT_SECONDS", "30"))
+    TASK_HEARTBEAT_INTERVAL_SECONDS = int(
+        os.getenv("TASK_HEARTBEAT_INTERVAL_SECONDS", "60"))
+    TEAM_RECLAIM_GRACE_SECONDS = int(
+        os.getenv("TEAM_RECLAIM_GRACE_SECONDS", "30"))
+    TASK_DEDUPE_FUZZY_THRESHOLD = float(
+        os.getenv("TASK_DEDUPE_FUZZY_THRESHOLD", "0.75"))
+
+    TEAM_MAX_TOKENS = int(os.getenv("TEAM_MAX_TOKENS", "0"))
+    TEAM_MAX_SPAWNS = int(os.getenv("TEAM_MAX_SPAWNS", "0"))
+    TEAM_MAX_TASKS = int(os.getenv("TEAM_MAX_TASKS", "0"))
+    TEAM_MAX_WALL_SECONDS = int(
+        os.getenv("TEAM_MAX_WALL_SECONDS", "0"))
+
+    REVIEW_MAX_DIFF_CHARS = int(
+        os.getenv("REVIEW_MAX_DIFF_CHARS", "20000"))
+    REVIEW_MAX_FINDINGS = int(os.getenv("REVIEW_MAX_FINDINGS", "20"))
+    REVIEW_ALLOW_LOCAL = os.getenv("REVIEW_ALLOW_LOCAL", "0") == "1"
+    INTEGRATION_REQUIRE_REVIEW = os.getenv(
+        "INTEGRATION_REQUIRE_REVIEW", "0") == "1"
+    INTEGRATION_MAX_SOURCES = int(
+        os.getenv("INTEGRATION_MAX_SOURCES", "20"))
+    INTEGRATION_MAX_OUTPUT_CHARS = int(
+        os.getenv("INTEGRATION_MAX_OUTPUT_CHARS", "20000"))
+    INTEGRATION_TIMEOUT_SECONDS = int(
+        os.getenv("INTEGRATION_TIMEOUT_SECONDS", "600"))
+
     @classmethod
     def memory_dir(cls) -> Path:
         return cls.WORKDIR / ".memory"
@@ -213,6 +252,22 @@ class Configs:
     @classmethod
     def worktrees_dir(cls) -> Path:
         return cls.WORKDIR / ".worktrees"
+
+    @classmethod
+    def team_dir(cls) -> Path:
+        return cls.WORKDIR / ".team"
+
+    @classmethod
+    def roles_path(cls) -> Path:
+        return cls.WORKDIR / "roles.json"
+
+    @classmethod
+    def team_metrics_path(cls) -> Path:
+        return cls.team_dir() / "metrics.json"
+
+    @classmethod
+    def integration_lock_path(cls) -> Path:
+        return cls.team_dir() / "integration.lock"
 
     @classmethod
     def audit_dir(cls) -> Path:

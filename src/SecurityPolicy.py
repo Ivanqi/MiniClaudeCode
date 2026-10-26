@@ -70,11 +70,17 @@ CONTROL_PLANE_PATTERNS = (
     "src/Retention.py",
     "src/Memories.py",
     "src/SkillSystem.py",
+    "src/Roles.py",
+    "src/TeamMetrics.py",
+    "src/LeadMonitor.py",
+    "src/ReviewSystem.py",
+    "src/IntegrationSystem.py",
     "Catering/Guardrails.py",
     "Catering/AnomalyAgent.py",
     "Catering/Cases.py",
     "Catering/data/cases/**",
     "skills/**",
+    "roles.json",
     ".claude/**",
 )
 
@@ -89,6 +95,7 @@ PROTECTED_STATE_PATTERNS = (
     ".training_data/**",
     ".memory/**",
     ".worktrees/**",
+    ".team/**",
     ".git/**",
 )
 

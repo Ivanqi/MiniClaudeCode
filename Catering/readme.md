@@ -185,7 +185,7 @@ LMDI 期望值由生成器**内联独立实现**写入 `data/expected_contributi
 ## 测试
 
 ```bash
-python -m unittest discover -s tests -v    # 272 个用例(含 Catering 39 个),全部离线
+python -m unittest discover -s tests -v    # 332 个用例(含 Catering 39 个),全部离线
 ```
 
 ## 已知限制(v1)

@@ -127,7 +127,10 @@ class TestMemoryTools(unittest.TestCase):
         full, _ = loop.tool_registry.assemble()
         names = {tool["function"]["name"] for tool in full}
         for name in ("remember", "recall", "forget",
-                     "search_transcripts", "recall_transcript"):
+                     "search_transcripts", "recall_transcript",
+                     "review_task", "plan_integration",
+                     "preflight_integration", "apply_integration",
+                     "seal_worktree", "team_status"):
             self.assertIn(name, names)
         slim, _ = loop.tool_registry.assemble(slim=True)
         slim_names = {tool["function"]["name"] for tool in slim}
@@ -136,6 +139,7 @@ class TestMemoryTools(unittest.TestCase):
         self.assertNotIn("forget", slim_names)
         self.assertNotIn("search_transcripts", slim_names)
         self.assertFalse((self.tmp / ".memory").exists())
+        self.assertFalse((self.tmp / ".team").exists())
         loop._startup_maintenance()
         self.assertTrue((self.tmp / ".memory" / "MEMORY.md").exists())
 

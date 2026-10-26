@@ -2,13 +2,19 @@
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from src.ActiveTeammates import ActiveTeammates
+from src.ApprovalGate import ApprovalGate
+from src.AuditLog import AuditLog
 from src.Configs import Configs
 from src.LlmClient import LlmResponse, ToolCall
 from src.MessageBus import MessageBus
+from src.ProtocolSystem import ProtocolSystem
+from src.Sandbox import Sandbox
 from src.TaskSystem import TaskSystem
 from src.TeammateSystem import TeammateSystem
+from src.ToolDispatcher import ToolDispatcher
 
 
 class FailingClient:
@@ -46,11 +52,11 @@ class TestTeammateSafety(unittest.TestCase):
     def test_invalid_name_and_team_cap(self):
         system = self.build(FailingClient(
             LlmResponse(content="", tool_calls=[])))
-        self.assertIn("Error", system.spawn("../evil", "r", "p"))
-        self.assertIn("reserved", system.spawn("lead", "r", "p"))
+        self.assertIn("Error", system.spawn("../evil", "developer", "p"))
+        self.assertIn("reserved", system.spawn("lead", "developer", "p"))
         for index in range(Configs.MAX_TEAMMATES):
             self.team.add(f"worker-{index}")
-        self.assertIn("max active teammates", system.spawn("worker-x", "r", "p"))
+        self.assertIn("max active teammates", system.spawn("worker-x", "developer", "p"))
 
     def test_model_failure_sends_failed_result_and_releases_task(self):
         task = self.tasks.create_task("do work")
@@ -61,7 +67,7 @@ class TestTeammateSafety(unittest.TestCase):
             finish_reason="tool_calls")
         system = self.build(FailingClient(first))
         self.team.add("worker")
-        system._run_teammate("worker", "tester", "do the task")
+        system._run_teammate("worker", "developer", "do the task")
 
         inbox = self.bus.read_inbox("lead")
         self.assertEqual(len(inbox), 1)
@@ -74,6 +80,54 @@ class TestTeammateSafety(unittest.TestCase):
         reloaded = self.tasks.load_task(task.id)
         self.assertEqual(reloaded.status, "pending")
         self.assertIsNone(reloaded.owner)
+
+    def test_plan_timeout_releases_task_and_reports_failed(self):
+        task = self.tasks.create_task("plan me")
+        client = ScriptClient([
+            LlmResponse(content="",
+                        tool_calls=[ToolCall(id="c1", name="claim_task",
+                                             arguments={"task_id": task.id})],
+                        finish_reason="tool_calls"),
+            LlmResponse(content="",
+                        tool_calls=[ToolCall(id="c2", name="submit_plan",
+                                             arguments={"plan": "do it"})],
+                        finish_reason="tool_calls"),
+        ])
+        protocol = ProtocolSystem(bus=self.bus)
+        dispatcher = ToolDispatcher(
+            hooks=None, audit=AuditLog(directory=self.tmp / "audit"),
+            approval=ApprovalGate(interactive=False, auto_approve=set()),
+            sandbox=Sandbox(mode="off"))
+        system = TeammateSystem(
+            client, bus=self.bus, protocol=protocol, tasks=self.tasks,
+            teammates=self.team, dispatcher=dispatcher)
+        self.team.add("worker", role="developer")
+        with mock.patch.object(Configs, "PLAN_APPROVAL_TIMEOUT_SECONDS", 0):
+            system._run_teammate("worker", "developer", "do")
+
+        inbox = self.bus.read_inbox("lead")
+        results = [msg for msg in inbox if msg.get("type") == "result"]
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["metadata"]["status"], "failed")
+        self.assertIn("plan approval timeout", results[0]["metadata"]["error"])
+        loaded = self.tasks.load_task(task.id)
+        self.assertEqual(loaded.status, "pending")
+        self.assertEqual(loaded.attempts, 0)
+        self.assertIsNone(loaded.owner)
+        states = list(protocol.pending_requests.values())
+        self.assertTrue(any(state.status == "cancelled" for state in states))
+
+
+class ScriptClient:
+    def __init__(self, script):
+        self.script = list(script)
+        self.calls = 0
+        self.fallback_model = None
+
+    def create(self, messages, system=None, tools=None, max_tokens=4096,
+               model=None):
+        self.calls += 1
+        return self.script.pop(0)
 
 
 if __name__ == "__main__":

@@ -31,7 +31,7 @@ WRITE_TOOL_NAMES = frozenset({"write_file", "edit_file"})
 # 这些工具默认逐次确认;remove_worktree 仅在 discard_changes=true 时确认。
 DEFAULT_CONFIRM_TOOLS = frozenset({
     "remove_worktree", "archive_case", "deploy_asset", "register_asset",
-    "forget",
+    "forget", "seal_worktree", "apply_integration",
 })
 
 BASH_FULL = "full"
@@ -143,6 +143,7 @@ class ToolPolicy:
     bash_mode: str = BASH_FULL
     allow_mcp: bool = True
     max_calls: int = 0
+    requires_sandbox: bool = False
 
     def root(self) -> Path:
         if self.force_cwd is not None:
@@ -196,6 +197,7 @@ class ToolPolicy:
             "force_cwd": str(self.force_cwd) if self.force_cwd else None,
             "bash_mode": self.bash_mode,
             "allow_mcp": self.allow_mcp,
+            "requires_sandbox": self.requires_sandbox,
             "allowed": sorted(self.allowed) if self.allowed is not None else None,
         }
 
@@ -249,6 +251,7 @@ def teammate_policy(worktree: str | Path | None = None) -> ToolPolicy:
             force_cwd=root,
             bash_mode=BASH_FULL,
             allow_mcp=False,
+            requires_sandbox=True,
         )
     return ToolPolicy(
         role="teammate",

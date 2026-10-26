@@ -351,11 +351,11 @@ class ToolDispatcher:
         command = arguments.get("command", "")
         # 队友的完整 bash 依赖沙箱把写操作限制在 worktree 内;
         # auto 模式无 bwrap 时 fail-closed,只有显式 SANDBOX_MODE=off 才放行。
-        if (policy.role == "teammate" and policy.bash_mode == "full"
+        if (policy.requires_sandbox and policy.bash_mode == "full"
                 and self.sandbox.mode != "off"
                 and not self.sandbox.sandboxed):
             return ToolResult.denied_result(
-                "teammate bash requires an available sandbox")
+                "this policy requires an available sandbox")
         writable = () if policy.read_only else tuple(policy.writable_roots)
         try:
             argv = self.sandbox.wrap(
