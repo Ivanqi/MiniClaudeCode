@@ -20,6 +20,7 @@ caller 取值:
 - subagent: 探索式子代理,工具集小,默认 local
 - teammate: 长时自治队友,默认 api
 - catering: 餐饮 Agent 探索循环,默认 api;只有纯概念问答走 local 且不带工具
+- plan_step: 通用 Plan 的单步 ReAct,强制 api(不进入 local 的只读窄工具集)
 """
 import json
 import time
@@ -156,7 +157,9 @@ class ModelRouter:
         - active_teammates: 有活跃队友(多代理协作默认复杂)
         """
         flags = flags or {}
-        if self.mode == "api-only":
+        if caller == "plan_step":
+            decision = RouterDecision(False, "caller:plan_step")
+        elif self.mode == "api-only":
             decision = RouterDecision(False, "mode:api-only")
         elif self.mode == "local-only":
             decision = RouterDecision(self.local_healthy(), "mode:local-only")

@@ -75,6 +75,8 @@ CONTROL_PLANE_PATTERNS = (
     "src/LeadMonitor.py",
     "src/ReviewSystem.py",
     "src/IntegrationSystem.py",
+    "src/PlanSystem.py",
+    "src/StrategyRouter.py",
     "Catering/Guardrails.py",
     "Catering/AnomalyAgent.py",
     "Catering/Cases.py",
@@ -96,6 +98,7 @@ PROTECTED_STATE_PATTERNS = (
     ".memory/**",
     ".worktrees/**",
     ".team/**",
+    ".plans/**",
     ".git/**",
 )
 

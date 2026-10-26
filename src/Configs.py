@@ -217,6 +217,20 @@ class Configs:
     INTEGRATION_TIMEOUT_SECONDS = int(
         os.getenv("INTEGRATION_TIMEOUT_SECONDS", "600"))
 
+    # ── 通用 Plan / PlanExecutor ──
+    PLAN_MAX_STEPS = int(os.getenv("PLAN_MAX_STEPS", "20"))
+    PLAN_STEP_MAX_ROUNDS = int(
+        os.getenv("PLAN_STEP_MAX_ROUNDS", "20"))
+    PLAN_STEP_MAX_TOOL_CALLS = int(
+        os.getenv("PLAN_STEP_MAX_TOOL_CALLS", "60"))
+    PLAN_MAX_TOTAL_TOKENS = int(
+        os.getenv("PLAN_MAX_TOTAL_TOKENS", "400000"))
+    PLAN_MAX_WALL_SECONDS = int(
+        os.getenv("PLAN_MAX_WALL_SECONDS", "1800"))
+    PLAN_MAX_REVISIONS = int(os.getenv("PLAN_MAX_REVISIONS", "2"))
+    PLAN_AUTO_REPLAN = os.getenv("PLAN_AUTO_REPLAN", "1") == "1"
+    PLANNER_MAX_TOKENS = int(os.getenv("PLANNER_MAX_TOKENS", "4096"))
+
     @classmethod
     def memory_dir(cls) -> Path:
         return cls.WORKDIR / ".memory"
@@ -252,6 +266,10 @@ class Configs:
     @classmethod
     def worktrees_dir(cls) -> Path:
         return cls.WORKDIR / ".worktrees"
+
+    @classmethod
+    def plans_dir(cls) -> Path:
+        return cls.WORKDIR / ".plans"
 
     @classmethod
     def team_dir(cls) -> Path:

@@ -56,11 +56,12 @@ class ToolRegistry:
                 "tool definitions without handlers: " + ", ".join(sorted(missing)))
         return tools, handlers
 
-    def assemble(self, slim: bool = False) -> tuple[list[dict], dict]:
+    def assemble(self, slim: bool = False,
+                 allowlist: set[str] | None = None) -> tuple[list[dict], dict]:
         """合并内置工具 + 所有已连接 MCP 工具,返回 (定义列表, 处理器字典)。
 
         slim=True:只保留只读白名单工具(不含 MCP 工具,能力未知一律排除),
-        供本地小模型调用。
+        供本地小模型调用。allowlist 非 None 时再按工具名收窄(Plan step 用)。
         """
         tools, handlers = self._assemble_systems()
         if slim:
@@ -68,17 +69,22 @@ class ToolRegistry:
                      if t["function"]["name"] in self.READONLY_TOOL_NAMES]
             handlers = {name: handler for name, handler in handlers.items()
                         if name in self.READONLY_TOOL_NAMES}
-            return tools, handlers
-
-        mcp_tools, mcp_handlers = self.mcp.merged_tools()
-        existing = {t["function"]["name"] for t in tools}
-        for tool_def in mcp_tools:
-            name = tool_def["function"]["name"]
-            if name in existing or name in handlers:
-                raise ValueError(f"duplicate MCP tool name '{name}'")
-            existing.add(name)
-            tools.append(tool_def)
-        handlers.update(mcp_handlers)
+        else:
+            mcp_tools, mcp_handlers = self.mcp.merged_tools()
+            existing = {t["function"]["name"] for t in tools}
+            for tool_def in mcp_tools:
+                name = tool_def["function"]["name"]
+                if name in existing or name in handlers:
+                    raise ValueError(f"duplicate MCP tool name '{name}'")
+                existing.add(name)
+                tools.append(tool_def)
+            handlers.update(mcp_handlers)
+        if allowlist is not None:
+            names = set(allowlist)
+            tools = [t for t in tools
+                     if t["function"]["name"] in names]
+            handlers = {name: handler for name, handler in handlers.items()
+                        if name in names}
         return tools, handlers
 
     def metadata(self, name: str) -> dict:

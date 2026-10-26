@@ -21,3 +21,4 @@ local_model/__pycache__/
 .task_outputs/
 .memory/
 .team/
+.plans/

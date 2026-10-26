@@ -72,6 +72,19 @@ class Task:
     reviewed_at: float | None = None
     reviewed_by: str = ""
     reviewed_head: str = ""
+    # ── Plan step ──
+    plan_id: str = ""
+    step_id: str = ""
+    plan_version: int = 0
+    step_result: dict = field(default_factory=dict)
+    evidence: list[str] = field(default_factory=list)
+    artifacts: list[str] = field(default_factory=list)
+    requires_approval: bool = False
+    approval_status: str = ""
+    rollback: str = ""
+    rollback_status: str = ""
+    input_refs: list[str] = field(default_factory=list)
+    output_refs: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -282,7 +295,7 @@ class TaskSystem:
                            scope: str = "", target_files=None,
                            acceptance: str = "",
                            kind: str = "work") -> CreateResult:
-        if kind not in ("work", "integration"):
+        if kind not in ("work", "integration", "plan_step"):
             raise ValueError(f"invalid task kind: {kind}")
         key = self._validate_idempotency_key(idempotency_key)
         targets = _normalize_targets(target_files)
@@ -562,6 +575,8 @@ class TaskSystem:
         cutoff = now - max(0.0, float(grace_seconds or 0.0))
         with self._locked():
             for task in self._list_unlocked():
+                if task.kind == "plan_step":
+                    continue  # lead 管理的长步骤,不由队友 idle 回收
                 if task.status != "in_progress" or task.lease_until is None:
                     continue
                 if task.owner and task.owner in live:
@@ -653,6 +668,154 @@ class TaskSystem:
             self._save_unlocked(task)
             TEAM_METRICS.record("task_completed")
         return f"Completed integration {task_id}"
+
+    # ── Plan step ──
+
+    @staticmethod
+    def _bounded_step_result(value) -> dict:
+        if isinstance(value, dict):
+            source = value
+        elif value is None:
+            source = {}
+        else:
+            source = {"output": value}
+        result = {}
+        for key, item in list(source.items())[:20]:
+            name = str(key)[:100]
+            if isinstance(item, str):
+                result[name] = item[:4000]
+            elif isinstance(item, (int, float, bool)) or item is None:
+                result[name] = item
+            else:
+                result[name] = json.dumps(
+                    item, ensure_ascii=False, default=str)[:4000]
+        return result
+
+    def create_plan_step_task(self, plan_id: str, revision: int,
+                              step_id: str, subject: str,
+                              description: str = "",
+                              acceptance: str = "",
+                              blocked_by: list[str] | None = None,
+                              requires_approval: bool = False,
+                              rollback: str = "",
+                              target_files=None) -> Task:
+        key = f"plan:{plan_id}:v{int(revision)}:step:{step_id}"
+        result = self.create_task_result(
+            subject, description, blocked_by or [], idempotency_key=key,
+            scope=f"plan:{plan_id}", target_files=target_files,
+            acceptance=acceptance, kind="plan_step")
+        with self._locked():
+            task = self._load_unlocked(result.task.id)
+            task.plan_id = str(plan_id)[:200]
+            task.step_id = str(step_id)[:64]
+            task.plan_version = int(revision)
+            task.requires_approval = bool(requires_approval)
+            task.rollback = str(rollback or "")[:4000]
+            self._save_unlocked(task)
+            return task
+
+    def begin_step(self, task_id: str) -> tuple[bool, str]:
+        with self._locked():
+            task = self._load_unlocked(task_id)
+            if task.kind != "plan_step":
+                return False, f"task {task_id} is not a plan step"
+            if task.status == "completed":
+                return False, "step already completed"
+            if task.status != "pending":
+                return False, f"step is {task.status}"
+            if not self._can_start_unlocked(task_id):
+                return False, "step dependencies are not completed"
+            now = self._now()
+            task.owner = "plan-executor"
+            task.status = "in_progress"
+            task.claim_token = uuid.uuid4().hex
+            task.lease_until = now + Configs.TASK_LEASE_SECONDS
+            task.heartbeat_at = now
+            task.updated_at = now
+            self._save_unlocked(task)
+            return True, task.claim_token
+
+    def set_approval(self, task_id: str, status: str) -> str:
+        with self._locked():
+            task = self._load_unlocked(task_id)
+            task.approval_status = str(status or "")[:100]
+            task.updated_at = self._now()
+            self._save_unlocked(task)
+        return f"Approval {task_id}: {status}"
+
+    def complete_step(self, task_id: str, result,
+                      evidence: list[str] | None = None,
+                      artifacts: list[str] | None = None,
+                      output_refs: list[str] | None = None,
+                      claim_token: str | None = None) -> str:
+        with self._locked():
+            task = self._load_unlocked(task_id)
+            if self._lease_lost(task, claim_token):
+                return f"Lease lost for task {task_id}; cannot complete"
+            if task.kind != "plan_step":
+                return f"Task {task_id} is not a plan step"
+            if task.status != "in_progress":
+                return f"Task {task_id} is {task.status}, cannot complete"
+            now = self._now()
+            task.step_result = self._bounded_step_result(result)
+            task.evidence = [str(item)[:2000]
+                             for item in (evidence or [])][:100]
+            task.artifacts = [str(item)[:2000]
+                              for item in (artifacts or [])][:100]
+            task.output_refs = [str(item)[:300]
+                                for item in (output_refs or [])][:100]
+            task.status = "completed"
+            task.completed_at = now
+            task.updated_at = now
+            task.lease_until = None
+            task.heartbeat_at = None
+            task.claim_token = None
+            self._save_unlocked(task)
+            TEAM_METRICS.record("task_completed")
+        return f"Completed step {task_id}"
+
+    def fail_step(self, task_id: str, error: str = "",
+                  claim_token: str | None = None,
+                  rollback_status: str = "manual_required") -> str:
+        with self._locked():
+            task = self._load_unlocked(task_id)
+            if self._lease_lost(task, claim_token):
+                return f"Lease lost for task {task_id}; cannot fail"
+            if task.kind != "plan_step":
+                return f"Task {task_id} is not a plan step"
+            if task.status == "completed":
+                return f"Task {task_id} is completed, cannot fail"
+            task.status = "failed"
+            task.last_error = str(error or "")[:500]
+            task.step_result = self._bounded_step_result(
+                {"status": "failed", "output": str(error or "")})
+            task.rollback_status = str(rollback_status or "")[:100]
+            task.owner = None
+            task.claim_token = None
+            task.lease_until = None
+            task.heartbeat_at = None
+            task.updated_at = self._now()
+            self._save_unlocked(task)
+            TEAM_METRICS.record("task_failed")
+        return f"Failed step {task_id}: {error}"
+
+    def abort_plan_step(self, task_id: str,
+                        reason: str = "plan aborted") -> str:
+        with self._locked():
+            task = self._load_unlocked(task_id)
+            if task.kind != "plan_step" or task.status == "completed":
+                return f"Task {task_id} is not abortable"
+            if task.status != "failed":
+                TEAM_METRICS.record("task_failed")
+            task.status = "failed"
+            task.last_error = str(reason or "")[:500]
+            task.owner = None
+            task.claim_token = None
+            task.lease_until = None
+            task.heartbeat_at = None
+            task.updated_at = self._now()
+            self._save_unlocked(task)
+        return f"Aborted step {task_id}"
 
     def set_review(self, task_id: str, status: str,
                    findings: list[str] | None = None,

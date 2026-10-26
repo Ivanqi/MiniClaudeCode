@@ -4,7 +4,8 @@ DeepSeek 驱动的命令行编码智能体——一个 Claude Code 的实现。�
 
 ## 功能特性
 
-- **工具调用循环**：模型通过 function calling 驱动文件操作、bash、任务看板、worktree、cron、技能加载、多代理协作、记忆检索等 41 个内置工具 + 动态 MCP 工具
+- **工具调用循环**：模型通过 function calling 驱动文件操作、bash、任务看板、worktree、cron、技能加载、多代理协作、记忆检索等 46 个内置工具 + 动态 MCP 工具
+- **通用 Plan（Plan/Execute/Replan）**：`choose_strategy` 规则选路，`create_plan` 生成并校验 DAG 计划，`execute_plan`/`plan_execute` 按 TaskSystem 拓扑执行；每步独立 ReAct 预算、计划级 token/墙钟/步数上限；审批步骤持久化 `awaiting_approval`，拒绝即终态；运行时失败最多自动 replan 一次（revision 上限），resume 以 Task 完成状态为准，中断步骤保守失败不重跑，rollback 只提示人工处理
 - **分层上下文压缩**：超大工具结果落盘 → 消息数裁剪 → 旧工具结果折叠 → LLM 摘要压缩 → 上下文超长应急压缩，每层保护 `tool_calls`/`tool` 配对完整性
 - **多代理协作**：lead 可 spawn 自治队友线程，通过文件邮箱通信；队友空闲时自动认领无主任务；**计划审批闸门**——队友提交计划后暂停一切模型/工具步骤，直到 lead 审批
 - **聚焦子代理**：`task` 工具生成最小工具集的子代理，循环执行后只回传文本摘要
@@ -20,7 +21,7 @@ DeepSeek 驱动的命令行编码智能体——一个 Claude Code 的实现。�
 - **角色化多代理治理**：`RoleSpec` 定义职责/允许工具/写范围/验收标准/任务上限，`roles.json` 可覆盖但安全不变量不可关闭；`review_task` 用只读 reviewer 子代理独立验收
 - **任务去重与合并队列**：subject+scope+targets 精确指纹自动复用、相似任务警告；`seal_worktree` 封存队友改动，`plan/preflight/apply` 按依赖顺序试合并并跑回归，apply 必须人工确认，不自动改 main
 - **团队健康与预算**：LeadMonitor 负责协议过期、孤儿任务回收、stale 队友 shutdown；`team_status` 暴露团队计数/预算/任务板；每任务 claim token 防止旧 owner 覆盖新 owner
-- **状态全部落盘**：任务、cron、worktree 事件、transcript、记忆索引、邮箱均为磁盘文件；任务带租约/心跳，邮箱原子消费，写操作有 `.backups/` 备份与 `.audit/` 审计
+- **状态全部落盘**：任务、cron、worktree 事件、transcript、记忆索引、邮箱、Plan 版本（`.plans/` 与 `history/`）均为磁盘文件；任务带租约/心跳，邮箱原子消费，写操作有 `.backups/` 备份与 `.audit/` 审计
 
 ## 整体架构
 
@@ -42,7 +43,7 @@ DeepSeek 驱动的命令行编码智能体——一个 Claude Code 的实现。�
                         └────────────────────────────────────────────┘
 ```
 
-代码按职责分为四层、40 个模块（`src/`），层间单向依赖：
+代码按职责分为四层、42 个模块（`src/`），层间单向依赖：
 
 ### 基础层
 
@@ -92,6 +93,8 @@ DeepSeek 驱动的命令行编码智能体——一个 Claude Code 的实现。�
 | `TeamMetrics` | 团队计数/预算/team_status、`.team/metrics.json` 快照 |
 | `LeadMonitor` | 协议过期、孤儿任务回收、stale 队友 shutdown、指标 flush |
 | `Memories` | 轮次上下文组装：top_k 记忆检索、MCP 连接、活跃队友、任务看板摘要 |
+| `StrategyRouter` | 纯规则策略路由：react / hybrid / plan 与 replan 触发器，不做模型调用 |
+| `PlanSystem` | 通用 Plan：Plan/Step 校验、版本化存储、Planner、PlanExecutor（DAG/审批/replan/resume/预算）、lead 工具 |
 | `ToolRegistry` | 工具注册表：聚合各系统工具与 MCP 工具；重名/缺 handler 检测 |
 
 ### 编排层
@@ -163,7 +166,7 @@ lead 与队友间的 shutdown / plan_approval 请求携带 `request_id`，响应
 
 ### 8. 可测试性
 
-状态类（`TaskSystem` / `WorktreeSystem` / `ContextCompact` / `CronScheduler` / `AuditLog` / `Sandbox` / `MemoryStore` / `TranscriptStore` / `Retention` / `Roles` / `TeamMetrics` / `LeadMonitor` / `ReviewSystem` / `IntegrationSystem`）均支持构造函数注入目录或时钟，测试不碰真实环境。332 个用例全部离线运行：`test_core.py` 覆盖纯逻辑，`test_agent_loop.py` 用 `FakeClient` 按脚本回放，`test_dispatcher.py` / `test_budget.py` 覆盖安全与预算收尾，`test_memory_store.py` / `test_memory_tools.py` 覆盖记忆契约与策略，`test_cases.py` / `test_tasks_memory.py` / `test_transcripts.py` / `test_retention.py` 覆盖各记忆落点；`test_roles.py` / `test_task_dedupe.py` / `test_protocol.py` / `test_lead_monitor.py` / `test_review_system.py` / `test_integration_system.py` 覆盖多代理治理与合并队列。
+状态类（`TaskSystem` / `WorktreeSystem` / `ContextCompact` / `CronScheduler` / `AuditLog` / `Sandbox` / `MemoryStore` / `TranscriptStore` / `Retention` / `Roles` / `TeamMetrics` / `LeadMonitor` / `ReviewSystem` / `IntegrationSystem` / `PlanStore` / `PlanSystem`）均支持构造函数注入目录/时钟/planner/runner/approval，测试不碰真实环境。404 个用例全部离线运行：`test_core.py` 覆盖纯逻辑，`test_agent_loop.py` 用 `FakeClient` 按脚本回放，`test_dispatcher.py` / `test_budget.py` 覆盖安全与预算收尾，`test_memory_store.py` / `test_memory_tools.py` 覆盖记忆契约与策略，`test_cases.py` / `test_tasks_memory.py` / `test_transcripts.py` / `test_retention.py` 覆盖各记忆落点；`test_roles.py` / `test_task_dedupe.py` / `test_protocol.py` / `test_lead_monitor.py` / `test_review_system.py` / `test_integration_system.py` 覆盖多代理治理与合并队列；`test_plan_system.py` / `test_plan_tasks.py` / `test_plan_executor.py` / `test_plan_tools.py` / `test_plan_agent_loop.py` / `test_plan_security.py` / `test_strategy_router.py` 覆盖 Plan 契约、版本存储、DAG/审批/replan/resume、作用域 AgentLoop 与安全边界。
 
 ### 9. 线程模型
 
@@ -202,6 +205,15 @@ cron 调度线程、cron 自动执行线程、后台任务线程、队友线程�
 
 - bash 默认 `SANDBOX_MODE=auto`：有 bwrap 时只读根、只写工作区/worktree、无网络；网络命令需确认后才放开 `--unshare-net`；没有 bwrap 时降级并告警（黑名单不是安全边界），`require` 模式直接失败。
 - MCP 工具按 `readOnlyHint` / `destructiveHint` 注解处理；无注解工具保守要求确认；破坏性工具在非交互/队友线程直接拒绝；调用带超时与输出上限。mock 服务器与真实服务器的描述标记都会参与推断。
+
+### 14. 通用 Plan（Plan / Execute / Replan）
+
+- **工具（仅 lead 可见）**：`choose_strategy`（纯规则建议 react/hybrid/plan 与 replan 触发器）、`create_plan`（Planner 生成严格 JSON → validator → `.plans/<id>.json`）、`execute_plan`（按 id 恢复执行）、`plan_execute`（创建并执行）、`plan_status`（步骤/证据/rollback 摘要）。slim、子代理、队友与 plan_step 作用域都不暴露这些工具。
+- **计划契约**：步骤 DAG（稳定拓扑序）、`success_criteria` 必填、工具 hint 不得包含 Plan 工具/spawn/MCP；`.plans/history/<id>.v<rev>.json` 保留旧 revision，revision 不得回退；`.plans/**` 属于受保护状态面，写入拒绝。
+- **执行**：每步在独立 `plan_step` ReAct 中运行（强制 API、无 cron/后台注入、不触发 Stop/轨迹/TODO、prompt 只含计划目标/修订/步骤目标/依赖结果/成功标准/工具 hint/输出契约，依赖结果标注 untrusted），工具 allowlist 再次剔除 Plan 工具/spawn/MCP。PlanBudget 限制步数/token/墙钟与每步轮数/工具调用；Planner/replan 用量计入计划总量。
+- **成功判定**：只认 runtime status 与结构化 envelope（`{"status": "completed|failed", ...}`）；无 envelope 的纯文本按 `completed(unverified)` 记录，不做自然语言关键词判定。成功后写 task result/evidence/artifacts、`working` 记忆 checkpoint（`plan:<id>:v<rev>:step:<id>:output`，有界/脱敏）并保存 Plan。
+- **审批与失败**：`requires_approval` 步骤先持久化 `awaiting_approval`/`approval_status` 再询问；拒绝 → 步骤失败 + 计划失败 + 中止剩余任务，绝不 replan 绕过。运行时失败 `fail_step` 不 requeue，记录 rollback 文本与 `rollback_status=manual_required`（永不自动执行）；满足 `PLAN_AUTO_REPLAN`、非审批/预算/校验/Planner 失败且 revision+1 ≤ `PLAN_MAX_REVISIONS` 时自动 replan 一次，旧 revision 归档、旧未完成任务 aborted，新计划只含剩余/新增步骤并沿用同一预算。
+- **恢复语义**：Task 完成状态权威；已完成步骤直接回填并跳过；in_progress 中断步骤保守标记失败、不静默重跑；进入终态时同一 plan 下不留 pending/in_progress 的 plan_step 任务。Plan/Task/Memory 非事务，因而每次步骤后保存 Plan，加载时 reconcile。
 
 ## 快速开始
 
@@ -256,6 +268,9 @@ CLI 中直接输入问题回车发送，`q` / `exit` / 空行退出。
 | `TEAM_MAX_TOKENS` / `TEAM_MAX_SPAWNS` / `TEAM_MAX_TASKS` / `TEAM_MAX_WALL_SECONDS` | | `0` / `0` / `0` / `0` | 团队预算;0=不限制,进程会话内生效 |
 | `REVIEW_ALLOW_LOCAL` / `REVIEW_MAX_DIFF_CHARS` / `REVIEW_MAX_FINDINGS` | | `0` / `20000` / `20` | Reviewer 模型与输出上限 |
 | `INTEGRATION_REQUIRE_REVIEW` / `INTEGRATION_MAX_SOURCES` / `INTEGRATION_TIMEOUT_SECONDS` | | `0` / `20` / `600` | 合并队列审查门与资源上限 |
+| `PLAN_MAX_STEPS` / `PLAN_MAX_TOTAL_TOKENS` / `PLAN_MAX_WALL_SECONDS` | | `20` / `400000` / `1800` | 计划级步数/token/墙钟上限；0=该维度不限制 |
+| `PLAN_STEP_MAX_ROUNDS` / `PLAN_STEP_MAX_TOOL_CALLS` | | `20` / `60` | 单个计划步骤的 ReAct 轮数与工具调用上限 |
+| `PLAN_MAX_REVISIONS` / `PLAN_AUTO_REPLAN` / `PLANNER_MAX_TOKENS` | | `2` / `1` / `4096` | 最大 revision、失败自动 replan 开关、Planner 输出上限 |
 
 **混合路由**（`ModelRouter`）：不配置 `LOCAL_*` 时退化为纯 API 行为。配置后按调用点静态路由（摘要、探索子代理 → 本地；长时队友 → API），主循环走保守 AND 规则——只有"明确简单"的查询（短消息、信息查询意图、无动作/复杂标记、上下文不超过阈值）才走本地小模型；纯问答会剥离工具集，其余本地调用使用**只读精简工具集**（`read_file`/`glob`/`list_tasks`/`get_task`/`list_crons`/`load_skill`，无 bash/写操作/MCP，Phase 4）。本地模型的质量信号（工具参数解析失败、空回复、length 截断、工具报错、同参数空转）触发**整 turn 升级 API**，升级后的历史不携带失败消息。
 
@@ -279,13 +294,14 @@ conda run -n llama python local_model/server.py \
 python -m unittest discover -s tests -v
 ```
 
-332 个用例全通过：
+404 个用例全通过：
 
 - **test_core.py（31 个）**：cron 表达式校验与匹配、任务生命周期与依赖阻塞、DeepSeek 消息/工具格式构造与往返、错误分类、压缩预算与配对保护、工具注册表合并（内置 + MCP）、worktree 名称校验、文件工具与路径沙箱
 - **test_agent_loop.py（2 个）**：用 `FakeClient` 离线跑通完整主循环——验证工具确实执行、tool 消息与 tool_calls 配对回传、system prompt 注入、`length` 截断升级 max_tokens 后成功收尾
 - **test_model_router.py（24 个）**：路由决策、静态调用点、模式开关、升级阶梯、本地只读工具集、轨迹收集
 - **test_catering.py（39 个）**：LMDI 拆解、数据源校验、告警扫描、ToolGuard、工作流端到端、Reasoner 降级、探索模式权限拦截/步数熔断、状态机、诊断链、评测场景
-- **新增 236 个**：敏感路径/控制面/脱敏/bash 分析、分发器确认与备份、预算收尾、后台完成/失败/取消/超时、任务并发认领与租约、邮箱并发消费、cron 限额、子代理只读、队友失败可见与任务释放、MCP 注解/超时、Catering 写工具逐次确认；记忆方面覆盖 MemoryStore 去重/top_k/touch/归档、任务归档与 idempotency、案例版本/时间衰减、skill 同名报错、message_id/ledger、transcript 搜索/recall、retention gzip/tar 归档；治理方面覆盖 RoleSpec/JSON 覆盖/安全不变量、任务指纹与 claim token、协议 TTL/重放、LeadMonitor、reviewer、merge queue 冲突/验收/人工门/base 变更
+- **test_plan_*.py / test_strategy_router.py（72 个）**：策略路由确定性、Plan validator/schema/DAG、版本化存储/路径穿越/revision 回退、Task plan_step（幂等/claim token/DAG 门禁/失败不 requeue）、PlanExecutor（依赖结果有界 prompt、task+memory+plan checkpoint、envelope/runtime/empty/unverified、审批通过/拒绝不 replan、失败自动 replan 一次、rollback 只记录、resume 跳过完成/中断保守失败、预算/并发/终态清理）、Plan 工具成对/惰性构造和 AgentLoop 作用域隔离
+- **其余 236 个**：敏感路径/控制面/脱敏/bash 分析、分发器确认与备份、预算收尾、后台完成/失败/取消/超时、任务并发认领与租约、邮箱并发消费、cron 限额、子代理只读、队友失败可见与任务释放、MCP 注解/超时、Catering 写工具逐次确认；记忆方面覆盖 MemoryStore 去重/top_k/touch/归档、任务归档与 idempotency、案例版本/时间衰减、skill 同名报错、message_id/ledger、transcript 搜索/recall、retention gzip/tar 归档；治理方面覆盖 RoleSpec/JSON 覆盖/安全不变量、任务指纹与 claim token、协议 TTL/重放、LeadMonitor、reviewer、merge queue 冲突/验收/人工门/base 变更
 
 ## Catering 业务包
 
@@ -304,7 +320,7 @@ python -m Catering.main --agentic "A店客流为什么降?"  # 探索模式：LL
 ```
 MiniClaudeCode/
 ├── main.py                    # 入口：加载 .env → 构建客户端 → 启动 CLI
-├── src/                       # 40 个模块，四层架构
+├── src/                       # 42 个模块，四层架构
 │   ├── Configs.py             #   全局配置
 │   ├── Terminal.py            #   终端输出
 │   ├── LlmClient.py           #   DeepSeek API 适配
@@ -343,6 +359,8 @@ MiniClaudeCode/
 │   ├── LeadMonitor.py         #   心跳/孤儿回收/协议过期
 │   ├── Memories.py            #   轮次上下文
 │   ├── ActiveTeammates.py     #   活跃队友注册表
+│   ├── StrategyRouter.py      #   react/hybrid/plan 规则路由
+│   ├── PlanSystem.py          #   Plan 契约/存储/Planner/Executor/工具
 │   ├── ToolRegistry.py        #   工具注册表
 │   └── AgentLoop.py           #   主循环与 CLI
 ├── Catering/                  # 餐饮业务包：门店经营异常分析 Agent（详见 Catering/readme.md）
@@ -359,7 +377,7 @@ MiniClaudeCode/
 │   ├── Scheduler.py           #   定时自动诊断（复用 CronScheduler）
 │   ├── gen_fixtures.py        #   样本数据生成器（确定性）
 │   └── main.py                #   CLI：--eval/--store/--agentic/--schedule/--tasks
-├── tests/                     # 离线测试用例（332 个）
+├── tests/                     # 离线测试用例（404 个）
 ├── skills/                    # 技能目录（agent-builder / code-review / mcp-builder / pdf / catering-ops / code-analysis-ops）
 ├── .env.example               # 环境变量模板
 └── requirements.txt           # httpx / python-dotenv / pyyaml
@@ -383,5 +401,6 @@ MiniClaudeCode/
 | SubagentSystem | `task` |
 | TeammateSystem | `spawn_teammate` `send_message` `check_inbox` `team_status` `request_shutdown` `request_plan` `review_plan` |
 | BackgroundTaskSystem | `get_background_task` `cancel_background_task` |
+| PlanSystem（仅 lead） | `choose_strategy` `create_plan` `execute_plan` `plan_execute` `plan_status` |
 
-system prompt 的工具清单由 `PromptBuilder` 根据本轮实际路由后的 `ToolRegistry` 工具集生成，不再维护第二份静态清单。
+system prompt 的工具清单由 `PromptBuilder` 根据本轮实际路由后的 `ToolRegistry` 工具集生成，不再维护第二份静态清单。Plan 工具只在 lead 工具池出现：slim 只读集、子代理、队友和 plan_step 作用域都会过滤；计划步骤的 allowlist 还会额外剔除 Plan 工具、`spawn_teammate` 与 MCP 工具。

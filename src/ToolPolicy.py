@@ -38,6 +38,13 @@ BASH_FULL = "full"
 BASH_READ_ONLY = "read_only"
 BASH_DENY = "deny"
 
+# 计划工具只给 lead;步骤 ReAct 与子代理/队友不得递归规划或 spawn。
+PLAN_TOOL_NAMES = frozenset({
+    "choose_strategy", "create_plan", "execute_plan", "plan_execute",
+    "plan_status",
+})
+PLAN_FORBIDDEN_STEP_TOOLS = PLAN_TOOL_NAMES | {"spawn_teammate"}
+
 
 @dataclass
 class ToolResult:
@@ -237,6 +244,22 @@ def subagent_local_policy() -> ToolPolicy:
         read_only=True,
         bash_mode=BASH_DENY,
         allow_mcp=False,
+    )
+
+
+def plan_step_policy(allowed) -> ToolPolicy:
+    """Plan step 的作用域策略:lead 类似能力,但工具集被 allowlist 收窄。
+
+    即使调用方误把 Plan 工具/spawn 放进 allowlist,策略层也会剔除;
+    MCP 由 allow_mcp=False 拒绝。
+    """
+    return ToolPolicy(
+        role="plan_step",
+        allowed=frozenset(set(allowed or ()) - PLAN_FORBIDDEN_STEP_TOOLS),
+        writable_roots=(Path(Configs.WORKDIR),),
+        bash_mode=BASH_FULL,
+        allow_mcp=False,
+        confirm_tools=DEFAULT_CONFIRM_TOOLS,
     )
 
 
