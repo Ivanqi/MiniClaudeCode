@@ -144,9 +144,9 @@ class DiagnosisReport:
     evidence: list[Evidence]
     matched_cases: list[dict]
     conclusions: str             # 自然语言结论(LLM 或模板)
-    recommendations: list[dict]  # [{action, reason, evidence_refs, source}]
+    recommendations: list[dict]  # [{action, reason, evidence_refs, case_refs, source}]
     completeness: dict           # {ran_steps, excluded_steps, no_data_steps, errors}
-    meta: dict                   # {llm_used, template_fallback, attempts, model}
+    meta: dict                   # {llm_used, template_fallback, attempts, model, case_mode}
     created_at: str = ""
 
     def to_dict(self) -> dict:

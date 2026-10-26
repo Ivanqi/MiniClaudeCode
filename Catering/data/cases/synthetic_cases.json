@@ -1,0 +1,4406 @@
+{
+  "schema_version": 1,
+  "description": "确定性生成的案例库测试语料:18 类场景 × 6 家门店 + 4 条过滤边界案例。",
+  "cases": [
+    {
+      "case_id": "CASE-SYN-0001",
+      "store_id": "A店",
+      "date": "2025-02-15",
+      "main_factor": "traffic",
+      "dimensions": [
+        "traffic",
+        "channels",
+        "external"
+      ],
+      "summary": "连续强降雨导致商圈客流减少 12%,到店客流降幅高于线上;天气转好后逐步恢复。",
+      "actions": [
+        "暴雨时段加大线上渠道曝光",
+        "推送雨天到店券",
+        "关注天气恢复后的客流反弹"
+      ],
+      "tags": [
+        "恶劣天气",
+        "客流下滑",
+        "线下"
+      ],
+      "symptoms": [
+        "客流同比下降 12%",
+        "到店客流明显减少"
+      ],
+      "metrics_snapshot": {
+        "traffic.pct_change": -12,
+        "revenue.pct_change": -7.8,
+        "sample_days": 7
+      },
+      "outcome": "天气转好后 1-2 日恢复",
+      "effective_from": "2025-02-15",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1739577600.0,
+      "updated_at": 1739577600.0
+    },
+    {
+      "case_id": "CASE-SYN-0002",
+      "store_id": "B店",
+      "date": "2025-02-20",
+      "main_factor": "traffic",
+      "dimensions": [
+        "traffic",
+        "channels",
+        "external"
+      ],
+      "summary": "连续强降雨导致商圈客流减少 14%,到店客流降幅高于线上;天气转好后逐步恢复。",
+      "actions": [
+        "暴雨时段加大线上渠道曝光",
+        "推送雨天到店券",
+        "关注天气恢复后的客流反弹"
+      ],
+      "tags": [
+        "恶劣天气",
+        "客流下滑",
+        "线下"
+      ],
+      "symptoms": [
+        "客流同比下降 14%",
+        "到店客流明显减少"
+      ],
+      "metrics_snapshot": {
+        "traffic.pct_change": -14,
+        "revenue.pct_change": -9.1,
+        "sample_days": 7
+      },
+      "outcome": "天气转好后 1-2 日恢复",
+      "effective_from": "2025-02-20",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1740009600.0,
+      "updated_at": 1740009600.0
+    },
+    {
+      "case_id": "CASE-SYN-0003",
+      "store_id": "C店",
+      "date": "2025-02-25",
+      "main_factor": "traffic",
+      "dimensions": [
+        "traffic",
+        "channels",
+        "external"
+      ],
+      "summary": "连续强降雨导致商圈客流减少 16%,到店客流降幅高于线上;天气转好后逐步恢复。",
+      "actions": [
+        "暴雨时段加大线上渠道曝光",
+        "推送雨天到店券",
+        "关注天气恢复后的客流反弹"
+      ],
+      "tags": [
+        "恶劣天气",
+        "客流下滑",
+        "线下"
+      ],
+      "symptoms": [
+        "客流同比下降 16%",
+        "到店客流明显减少"
+      ],
+      "metrics_snapshot": {
+        "traffic.pct_change": -16,
+        "revenue.pct_change": -10.4,
+        "sample_days": 7
+      },
+      "outcome": "天气转好后 1-2 日恢复",
+      "effective_from": "2025-02-25",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1740441600.0,
+      "updated_at": 1740441600.0
+    },
+    {
+      "case_id": "CASE-SYN-0004",
+      "store_id": "D店",
+      "date": "2025-03-02",
+      "main_factor": "traffic",
+      "dimensions": [
+        "traffic",
+        "channels",
+        "external"
+      ],
+      "summary": "连续强降雨导致商圈客流减少 18%,到店客流降幅高于线上;天气转好后逐步恢复。",
+      "actions": [
+        "暴雨时段加大线上渠道曝光",
+        "推送雨天到店券",
+        "关注天气恢复后的客流反弹"
+      ],
+      "tags": [
+        "恶劣天气",
+        "客流下滑",
+        "线下"
+      ],
+      "symptoms": [
+        "客流同比下降 18%",
+        "到店客流明显减少"
+      ],
+      "metrics_snapshot": {
+        "traffic.pct_change": -18,
+        "revenue.pct_change": -11.7,
+        "sample_days": 7
+      },
+      "outcome": "天气转好后 1-2 日恢复",
+      "effective_from": "2025-03-02",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1740873600.0,
+      "updated_at": 1740873600.0
+    },
+    {
+      "case_id": "CASE-SYN-0005",
+      "store_id": "E店",
+      "date": "2025-03-07",
+      "main_factor": "traffic",
+      "dimensions": [
+        "traffic",
+        "channels",
+        "external"
+      ],
+      "summary": "连续强降雨导致商圈客流减少 20%,到店客流降幅高于线上;天气转好后逐步恢复。",
+      "actions": [
+        "暴雨时段加大线上渠道曝光",
+        "推送雨天到店券",
+        "关注天气恢复后的客流反弹"
+      ],
+      "tags": [
+        "恶劣天气",
+        "客流下滑",
+        "线下"
+      ],
+      "symptoms": [
+        "客流同比下降 20%",
+        "到店客流明显减少"
+      ],
+      "metrics_snapshot": {
+        "traffic.pct_change": -20,
+        "revenue.pct_change": -13.0,
+        "sample_days": 7
+      },
+      "outcome": "天气转好后 1-2 日恢复",
+      "effective_from": "2025-03-07",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1741305600.0,
+      "updated_at": 1741305600.0
+    },
+    {
+      "case_id": "CASE-SYN-0006",
+      "store_id": "F店",
+      "date": "2025-03-12",
+      "main_factor": "traffic",
+      "dimensions": [
+        "traffic",
+        "channels",
+        "external"
+      ],
+      "summary": "连续强降雨导致商圈客流减少 22%,到店客流降幅高于线上;天气转好后逐步恢复。",
+      "actions": [
+        "暴雨时段加大线上渠道曝光",
+        "推送雨天到店券",
+        "关注天气恢复后的客流反弹"
+      ],
+      "tags": [
+        "恶劣天气",
+        "客流下滑",
+        "线下"
+      ],
+      "symptoms": [
+        "客流同比下降 22%",
+        "到店客流明显减少"
+      ],
+      "metrics_snapshot": {
+        "traffic.pct_change": -22,
+        "revenue.pct_change": -14.3,
+        "sample_days": 7
+      },
+      "outcome": "天气转好后 1-2 日恢复",
+      "effective_from": "2025-03-12",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1741737600.0,
+      "updated_at": 1741737600.0
+    },
+    {
+      "case_id": "CASE-SYN-0007",
+      "store_id": "A店",
+      "date": "2025-03-04",
+      "main_factor": "traffic",
+      "dimensions": [
+        "traffic",
+        "promotion",
+        "external"
+      ],
+      "summary": "同商圈竞对开展开业促销,分流客流约 15%;本店未跟进活动,客单基本稳定。",
+      "actions": [
+        "监控竞对活动周期与折扣力度",
+        "非高峰时段定向发会员券",
+        "强化招牌菜品差异化"
+      ],
+      "tags": [
+        "竞对活动",
+        "客流分流",
+        "商圈"
+      ],
+      "symptoms": [
+        "客流同比下降 15%",
+        "同商圈客流被分流"
+      ],
+      "metrics_snapshot": {
+        "traffic.pct_change": -15,
+        "revenue.pct_change": -9.8,
+        "sample_days": 7
+      },
+      "outcome": "竞对活动结束后回升",
+      "effective_from": "2025-03-04",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1741046400.0,
+      "updated_at": 1741046400.0
+    },
+    {
+      "case_id": "CASE-SYN-0008",
+      "store_id": "B店",
+      "date": "2025-03-09",
+      "main_factor": "traffic",
+      "dimensions": [
+        "traffic",
+        "promotion",
+        "external"
+      ],
+      "summary": "同商圈竞对开展开业促销,分流客流约 17%;本店未跟进活动,客单基本稳定。",
+      "actions": [
+        "监控竞对活动周期与折扣力度",
+        "非高峰时段定向发会员券",
+        "强化招牌菜品差异化"
+      ],
+      "tags": [
+        "竞对活动",
+        "客流分流",
+        "商圈"
+      ],
+      "symptoms": [
+        "客流同比下降 17%",
+        "同商圈客流被分流"
+      ],
+      "metrics_snapshot": {
+        "traffic.pct_change": -17,
+        "revenue.pct_change": -11.1,
+        "sample_days": 7
+      },
+      "outcome": "竞对活动结束后回升",
+      "effective_from": "2025-03-09",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1741478400.0,
+      "updated_at": 1741478400.0
+    },
+    {
+      "case_id": "CASE-SYN-0009",
+      "store_id": "C店",
+      "date": "2025-03-14",
+      "main_factor": "traffic",
+      "dimensions": [
+        "traffic",
+        "promotion",
+        "external"
+      ],
+      "summary": "同商圈竞对开展开业促销,分流客流约 19%;本店未跟进活动,客单基本稳定。",
+      "actions": [
+        "监控竞对活动周期与折扣力度",
+        "非高峰时段定向发会员券",
+        "强化招牌菜品差异化"
+      ],
+      "tags": [
+        "竞对活动",
+        "客流分流",
+        "商圈"
+      ],
+      "symptoms": [
+        "客流同比下降 19%",
+        "同商圈客流被分流"
+      ],
+      "metrics_snapshot": {
+        "traffic.pct_change": -19,
+        "revenue.pct_change": -12.3,
+        "sample_days": 7
+      },
+      "outcome": "竞对活动结束后回升",
+      "effective_from": "2025-03-14",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1741910400.0,
+      "updated_at": 1741910400.0
+    },
+    {
+      "case_id": "CASE-SYN-0010",
+      "store_id": "D店",
+      "date": "2025-03-19",
+      "main_factor": "traffic",
+      "dimensions": [
+        "traffic",
+        "promotion",
+        "external"
+      ],
+      "summary": "同商圈竞对开展开业促销,分流客流约 21%;本店未跟进活动,客单基本稳定。",
+      "actions": [
+        "监控竞对活动周期与折扣力度",
+        "非高峰时段定向发会员券",
+        "强化招牌菜品差异化"
+      ],
+      "tags": [
+        "竞对活动",
+        "客流分流",
+        "商圈"
+      ],
+      "symptoms": [
+        "客流同比下降 21%",
+        "同商圈客流被分流"
+      ],
+      "metrics_snapshot": {
+        "traffic.pct_change": -21,
+        "revenue.pct_change": -13.7,
+        "sample_days": 7
+      },
+      "outcome": "竞对活动结束后回升",
+      "effective_from": "2025-03-19",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1742342400.0,
+      "updated_at": 1742342400.0
+    },
+    {
+      "case_id": "CASE-SYN-0011",
+      "store_id": "E店",
+      "date": "2025-03-24",
+      "main_factor": "traffic",
+      "dimensions": [
+        "traffic",
+        "promotion",
+        "external"
+      ],
+      "summary": "同商圈竞对开展开业促销,分流客流约 23%;本店未跟进活动,客单基本稳定。",
+      "actions": [
+        "监控竞对活动周期与折扣力度",
+        "非高峰时段定向发会员券",
+        "强化招牌菜品差异化"
+      ],
+      "tags": [
+        "竞对活动",
+        "客流分流",
+        "商圈"
+      ],
+      "symptoms": [
+        "客流同比下降 23%",
+        "同商圈客流被分流"
+      ],
+      "metrics_snapshot": {
+        "traffic.pct_change": -23,
+        "revenue.pct_change": -15.0,
+        "sample_days": 7
+      },
+      "outcome": "竞对活动结束后回升",
+      "effective_from": "2025-03-24",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1742774400.0,
+      "updated_at": 1742774400.0
+    },
+    {
+      "case_id": "CASE-SYN-0012",
+      "store_id": "F店",
+      "date": "2025-03-29",
+      "main_factor": "traffic",
+      "dimensions": [
+        "traffic",
+        "promotion",
+        "external"
+      ],
+      "summary": "同商圈竞对开展开业促销,分流客流约 25%;本店未跟进活动,客单基本稳定。",
+      "actions": [
+        "监控竞对活动周期与折扣力度",
+        "非高峰时段定向发会员券",
+        "强化招牌菜品差异化"
+      ],
+      "tags": [
+        "竞对活动",
+        "客流分流",
+        "商圈"
+      ],
+      "symptoms": [
+        "客流同比下降 25%",
+        "同商圈客流被分流"
+      ],
+      "metrics_snapshot": {
+        "traffic.pct_change": -25,
+        "revenue.pct_change": -16.2,
+        "sample_days": 7
+      },
+      "outcome": "竞对活动结束后回升",
+      "effective_from": "2025-03-29",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1743206400.0,
+      "updated_at": 1743206400.0
+    },
+    {
+      "case_id": "CASE-SYN-0013",
+      "store_id": "A店",
+      "date": "2025-03-21",
+      "main_factor": "traffic",
+      "dimensions": [
+        "traffic",
+        "periods",
+        "channels"
+      ],
+      "summary": "门店后厨改造期间动线受限,高峰时段客流下降 18%;改造完成后恢复。",
+      "actions": [
+        "施工期调整营业动线与取餐口",
+        "提前告知会员并发放补偿券",
+        "改造完成后做开业预热"
+      ],
+      "tags": [
+        "门店施工",
+        "动线调整",
+        "进店"
+      ],
+      "symptoms": [
+        "客流同比下降 18%",
+        "高峰时段动线受限"
+      ],
+      "metrics_snapshot": {
+        "traffic.pct_change": -18,
+        "revenue.pct_change": -11.7,
+        "sample_days": 7
+      },
+      "outcome": "改造完成后恢复",
+      "effective_from": "2025-03-21",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1742515200.0,
+      "updated_at": 1742515200.0
+    },
+    {
+      "case_id": "CASE-SYN-0014",
+      "store_id": "B店",
+      "date": "2025-03-26",
+      "main_factor": "traffic",
+      "dimensions": [
+        "traffic",
+        "periods",
+        "channels"
+      ],
+      "summary": "门店后厨改造期间动线受限,高峰时段客流下降 20%;改造完成后恢复。",
+      "actions": [
+        "施工期调整营业动线与取餐口",
+        "提前告知会员并发放补偿券",
+        "改造完成后做开业预热"
+      ],
+      "tags": [
+        "门店施工",
+        "动线调整",
+        "进店"
+      ],
+      "symptoms": [
+        "客流同比下降 20%",
+        "高峰时段动线受限"
+      ],
+      "metrics_snapshot": {
+        "traffic.pct_change": -20,
+        "revenue.pct_change": -13.0,
+        "sample_days": 7
+      },
+      "outcome": "改造完成后恢复",
+      "effective_from": "2025-03-26",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1742947200.0,
+      "updated_at": 1742947200.0
+    },
+    {
+      "case_id": "CASE-SYN-0015",
+      "store_id": "C店",
+      "date": "2025-03-31",
+      "main_factor": "traffic",
+      "dimensions": [
+        "traffic",
+        "periods",
+        "channels"
+      ],
+      "summary": "门店后厨改造期间动线受限,高峰时段客流下降 22%;改造完成后恢复。",
+      "actions": [
+        "施工期调整营业动线与取餐口",
+        "提前告知会员并发放补偿券",
+        "改造完成后做开业预热"
+      ],
+      "tags": [
+        "门店施工",
+        "动线调整",
+        "进店"
+      ],
+      "symptoms": [
+        "客流同比下降 22%",
+        "高峰时段动线受限"
+      ],
+      "metrics_snapshot": {
+        "traffic.pct_change": -22,
+        "revenue.pct_change": -14.3,
+        "sample_days": 7
+      },
+      "outcome": "改造完成后恢复",
+      "effective_from": "2025-03-31",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1743379200.0,
+      "updated_at": 1743379200.0
+    },
+    {
+      "case_id": "CASE-SYN-0016",
+      "store_id": "D店",
+      "date": "2025-04-05",
+      "main_factor": "traffic",
+      "dimensions": [
+        "traffic",
+        "periods",
+        "channels"
+      ],
+      "summary": "门店后厨改造期间动线受限,高峰时段客流下降 24%;改造完成后恢复。",
+      "actions": [
+        "施工期调整营业动线与取餐口",
+        "提前告知会员并发放补偿券",
+        "改造完成后做开业预热"
+      ],
+      "tags": [
+        "门店施工",
+        "动线调整",
+        "进店"
+      ],
+      "symptoms": [
+        "客流同比下降 24%",
+        "高峰时段动线受限"
+      ],
+      "metrics_snapshot": {
+        "traffic.pct_change": -24,
+        "revenue.pct_change": -15.6,
+        "sample_days": 7
+      },
+      "outcome": "改造完成后恢复",
+      "effective_from": "2025-04-05",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1743811200.0,
+      "updated_at": 1743811200.0
+    },
+    {
+      "case_id": "CASE-SYN-0017",
+      "store_id": "E店",
+      "date": "2025-04-10",
+      "main_factor": "traffic",
+      "dimensions": [
+        "traffic",
+        "periods",
+        "channels"
+      ],
+      "summary": "门店后厨改造期间动线受限,高峰时段客流下降 26%;改造完成后恢复。",
+      "actions": [
+        "施工期调整营业动线与取餐口",
+        "提前告知会员并发放补偿券",
+        "改造完成后做开业预热"
+      ],
+      "tags": [
+        "门店施工",
+        "动线调整",
+        "进店"
+      ],
+      "symptoms": [
+        "客流同比下降 26%",
+        "高峰时段动线受限"
+      ],
+      "metrics_snapshot": {
+        "traffic.pct_change": -26,
+        "revenue.pct_change": -16.9,
+        "sample_days": 7
+      },
+      "outcome": "改造完成后恢复",
+      "effective_from": "2025-04-10",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1744243200.0,
+      "updated_at": 1744243200.0
+    },
+    {
+      "case_id": "CASE-SYN-0018",
+      "store_id": "F店",
+      "date": "2025-04-15",
+      "main_factor": "traffic",
+      "dimensions": [
+        "traffic",
+        "periods",
+        "channels"
+      ],
+      "summary": "门店后厨改造期间动线受限,高峰时段客流下降 13%;改造完成后恢复。",
+      "actions": [
+        "施工期调整营业动线与取餐口",
+        "提前告知会员并发放补偿券",
+        "改造完成后做开业预热"
+      ],
+      "tags": [
+        "门店施工",
+        "动线调整",
+        "进店"
+      ],
+      "symptoms": [
+        "客流同比下降 13%",
+        "高峰时段动线受限"
+      ],
+      "metrics_snapshot": {
+        "traffic.pct_change": -13,
+        "revenue.pct_change": -8.5,
+        "sample_days": 7
+      },
+      "outcome": "改造完成后恢复",
+      "effective_from": "2025-04-15",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1744675200.0,
+      "updated_at": 1744675200.0
+    },
+    {
+      "case_id": "CASE-SYN-0019",
+      "store_id": "A店",
+      "date": "2025-04-07",
+      "main_factor": "traffic",
+      "dimensions": [
+        "traffic",
+        "external",
+        "channels"
+      ],
+      "summary": "门前道路围挡施工,到店便利性下降,客流减少 21%;施工结束后回升。",
+      "actions": [
+        "在围挡处增加指引与备用入口",
+        "加大线上配送覆盖",
+        "与商圈物业沟通施工进度"
+      ],
+      "tags": [
+        "道路施工",
+        "围挡",
+        "进店"
+      ],
+      "symptoms": [
+        "客流同比下降 21%",
+        "到店便利性下降"
+      ],
+      "metrics_snapshot": {
+        "traffic.pct_change": -21,
+        "revenue.pct_change": -13.7,
+        "sample_days": 7
+      },
+      "outcome": "施工结束后两周恢复",
+      "effective_from": "2025-04-07",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1743984000.0,
+      "updated_at": 1743984000.0
+    },
+    {
+      "case_id": "CASE-SYN-0020",
+      "store_id": "B店",
+      "date": "2025-04-12",
+      "main_factor": "traffic",
+      "dimensions": [
+        "traffic",
+        "external",
+        "channels"
+      ],
+      "summary": "门前道路围挡施工,到店便利性下降,客流减少 23%;施工结束后回升。",
+      "actions": [
+        "在围挡处增加指引与备用入口",
+        "加大线上配送覆盖",
+        "与商圈物业沟通施工进度"
+      ],
+      "tags": [
+        "道路施工",
+        "围挡",
+        "进店"
+      ],
+      "symptoms": [
+        "客流同比下降 23%",
+        "到店便利性下降"
+      ],
+      "metrics_snapshot": {
+        "traffic.pct_change": -23,
+        "revenue.pct_change": -15.0,
+        "sample_days": 7
+      },
+      "outcome": "施工结束后两周恢复",
+      "effective_from": "2025-04-12",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1744416000.0,
+      "updated_at": 1744416000.0
+    },
+    {
+      "case_id": "CASE-SYN-0021",
+      "store_id": "C店",
+      "date": "2025-04-17",
+      "main_factor": "traffic",
+      "dimensions": [
+        "traffic",
+        "external",
+        "channels"
+      ],
+      "summary": "门前道路围挡施工,到店便利性下降,客流减少 25%;施工结束后回升。",
+      "actions": [
+        "在围挡处增加指引与备用入口",
+        "加大线上配送覆盖",
+        "与商圈物业沟通施工进度"
+      ],
+      "tags": [
+        "道路施工",
+        "围挡",
+        "进店"
+      ],
+      "symptoms": [
+        "客流同比下降 25%",
+        "到店便利性下降"
+      ],
+      "metrics_snapshot": {
+        "traffic.pct_change": -25,
+        "revenue.pct_change": -16.2,
+        "sample_days": 7
+      },
+      "outcome": "施工结束后两周恢复",
+      "effective_from": "2025-04-17",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1744848000.0,
+      "updated_at": 1744848000.0
+    },
+    {
+      "case_id": "CASE-SYN-0022",
+      "store_id": "D店",
+      "date": "2025-04-22",
+      "main_factor": "traffic",
+      "dimensions": [
+        "traffic",
+        "external",
+        "channels"
+      ],
+      "summary": "门前道路围挡施工,到店便利性下降,客流减少 12%;施工结束后回升。",
+      "actions": [
+        "在围挡处增加指引与备用入口",
+        "加大线上配送覆盖",
+        "与商圈物业沟通施工进度"
+      ],
+      "tags": [
+        "道路施工",
+        "围挡",
+        "进店"
+      ],
+      "symptoms": [
+        "客流同比下降 12%",
+        "到店便利性下降"
+      ],
+      "metrics_snapshot": {
+        "traffic.pct_change": -12,
+        "revenue.pct_change": -7.8,
+        "sample_days": 7
+      },
+      "outcome": "施工结束后两周恢复",
+      "effective_from": "2025-04-22",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1745280000.0,
+      "updated_at": 1745280000.0
+    },
+    {
+      "case_id": "CASE-SYN-0023",
+      "store_id": "E店",
+      "date": "2025-04-27",
+      "main_factor": "traffic",
+      "dimensions": [
+        "traffic",
+        "external",
+        "channels"
+      ],
+      "summary": "门前道路围挡施工,到店便利性下降,客流减少 14%;施工结束后回升。",
+      "actions": [
+        "在围挡处增加指引与备用入口",
+        "加大线上配送覆盖",
+        "与商圈物业沟通施工进度"
+      ],
+      "tags": [
+        "道路施工",
+        "围挡",
+        "进店"
+      ],
+      "symptoms": [
+        "客流同比下降 14%",
+        "到店便利性下降"
+      ],
+      "metrics_snapshot": {
+        "traffic.pct_change": -14,
+        "revenue.pct_change": -9.1,
+        "sample_days": 7
+      },
+      "outcome": "施工结束后两周恢复",
+      "effective_from": "2025-04-27",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1745712000.0,
+      "updated_at": 1745712000.0
+    },
+    {
+      "case_id": "CASE-SYN-0024",
+      "store_id": "F店",
+      "date": "2025-05-02",
+      "main_factor": "traffic",
+      "dimensions": [
+        "traffic",
+        "external",
+        "channels"
+      ],
+      "summary": "门前道路围挡施工,到店便利性下降,客流减少 16%;施工结束后回升。",
+      "actions": [
+        "在围挡处增加指引与备用入口",
+        "加大线上配送覆盖",
+        "与商圈物业沟通施工进度"
+      ],
+      "tags": [
+        "道路施工",
+        "围挡",
+        "进店"
+      ],
+      "symptoms": [
+        "客流同比下降 16%",
+        "到店便利性下降"
+      ],
+      "metrics_snapshot": {
+        "traffic.pct_change": -16,
+        "revenue.pct_change": -10.4,
+        "sample_days": 7
+      },
+      "outcome": "施工结束后两周恢复",
+      "effective_from": "2025-05-02",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1746144000.0,
+      "updated_at": 1746144000.0
+    },
+    {
+      "case_id": "CASE-SYN-0025",
+      "store_id": "A店",
+      "date": "2025-04-24",
+      "main_factor": "traffic",
+      "dimensions": [
+        "traffic",
+        "periods",
+        "external"
+      ],
+      "summary": "节假日返程效应导致本地客流下滑 24%,时段分布明显后移。",
+      "actions": [
+        "按节假日客流曲线调整排班",
+        "返程日减少备货",
+        "节前预售锁定客流"
+      ],
+      "tags": [
+        "节假日",
+        "客流波动",
+        "排班"
+      ],
+      "symptoms": [
+        "客流同比下降 24%",
+        "本地客流短期回落"
+      ],
+      "metrics_snapshot": {
+        "traffic.pct_change": -24,
+        "revenue.pct_change": -15.6,
+        "sample_days": 7
+      },
+      "outcome": "假期结束后回归常态",
+      "effective_from": "2025-04-24",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1745452800.0,
+      "updated_at": 1745452800.0
+    },
+    {
+      "case_id": "CASE-SYN-0026",
+      "store_id": "B店",
+      "date": "2025-04-29",
+      "main_factor": "traffic",
+      "dimensions": [
+        "traffic",
+        "periods",
+        "external"
+      ],
+      "summary": "节假日返程效应导致本地客流下滑 26%,时段分布明显后移。",
+      "actions": [
+        "按节假日客流曲线调整排班",
+        "返程日减少备货",
+        "节前预售锁定客流"
+      ],
+      "tags": [
+        "节假日",
+        "客流波动",
+        "排班"
+      ],
+      "symptoms": [
+        "客流同比下降 26%",
+        "本地客流短期回落"
+      ],
+      "metrics_snapshot": {
+        "traffic.pct_change": -26,
+        "revenue.pct_change": -16.9,
+        "sample_days": 7
+      },
+      "outcome": "假期结束后回归常态",
+      "effective_from": "2025-04-29",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1745884800.0,
+      "updated_at": 1745884800.0
+    },
+    {
+      "case_id": "CASE-SYN-0027",
+      "store_id": "C店",
+      "date": "2025-05-04",
+      "main_factor": "traffic",
+      "dimensions": [
+        "traffic",
+        "periods",
+        "external"
+      ],
+      "summary": "节假日返程效应导致本地客流下滑 13%,时段分布明显后移。",
+      "actions": [
+        "按节假日客流曲线调整排班",
+        "返程日减少备货",
+        "节前预售锁定客流"
+      ],
+      "tags": [
+        "节假日",
+        "客流波动",
+        "排班"
+      ],
+      "symptoms": [
+        "客流同比下降 13%",
+        "本地客流短期回落"
+      ],
+      "metrics_snapshot": {
+        "traffic.pct_change": -13,
+        "revenue.pct_change": -8.5,
+        "sample_days": 7
+      },
+      "outcome": "假期结束后回归常态",
+      "effective_from": "2025-05-04",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1746316800.0,
+      "updated_at": 1746316800.0
+    },
+    {
+      "case_id": "CASE-SYN-0028",
+      "store_id": "D店",
+      "date": "2025-05-09",
+      "main_factor": "traffic",
+      "dimensions": [
+        "traffic",
+        "periods",
+        "external"
+      ],
+      "summary": "节假日返程效应导致本地客流下滑 15%,时段分布明显后移。",
+      "actions": [
+        "按节假日客流曲线调整排班",
+        "返程日减少备货",
+        "节前预售锁定客流"
+      ],
+      "tags": [
+        "节假日",
+        "客流波动",
+        "排班"
+      ],
+      "symptoms": [
+        "客流同比下降 15%",
+        "本地客流短期回落"
+      ],
+      "metrics_snapshot": {
+        "traffic.pct_change": -15,
+        "revenue.pct_change": -9.8,
+        "sample_days": 7
+      },
+      "outcome": "假期结束后回归常态",
+      "effective_from": "2025-05-09",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1746748800.0,
+      "updated_at": 1746748800.0
+    },
+    {
+      "case_id": "CASE-SYN-0029",
+      "store_id": "E店",
+      "date": "2025-05-14",
+      "main_factor": "traffic",
+      "dimensions": [
+        "traffic",
+        "periods",
+        "external"
+      ],
+      "summary": "节假日返程效应导致本地客流下滑 17%,时段分布明显后移。",
+      "actions": [
+        "按节假日客流曲线调整排班",
+        "返程日减少备货",
+        "节前预售锁定客流"
+      ],
+      "tags": [
+        "节假日",
+        "客流波动",
+        "排班"
+      ],
+      "symptoms": [
+        "客流同比下降 17%",
+        "本地客流短期回落"
+      ],
+      "metrics_snapshot": {
+        "traffic.pct_change": -17,
+        "revenue.pct_change": -11.1,
+        "sample_days": 7
+      },
+      "outcome": "假期结束后回归常态",
+      "effective_from": "2025-05-14",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1747180800.0,
+      "updated_at": 1747180800.0
+    },
+    {
+      "case_id": "CASE-SYN-0030",
+      "store_id": "F店",
+      "date": "2025-05-19",
+      "main_factor": "traffic",
+      "dimensions": [
+        "traffic",
+        "periods",
+        "external"
+      ],
+      "summary": "节假日返程效应导致本地客流下滑 19%,时段分布明显后移。",
+      "actions": [
+        "按节假日客流曲线调整排班",
+        "返程日减少备货",
+        "节前预售锁定客流"
+      ],
+      "tags": [
+        "节假日",
+        "客流波动",
+        "排班"
+      ],
+      "symptoms": [
+        "客流同比下降 19%",
+        "本地客流短期回落"
+      ],
+      "metrics_snapshot": {
+        "traffic.pct_change": -19,
+        "revenue.pct_change": -12.3,
+        "sample_days": 7
+      },
+      "outcome": "假期结束后回归常态",
+      "effective_from": "2025-05-19",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1747612800.0,
+      "updated_at": 1747612800.0
+    },
+    {
+      "case_id": "CASE-SYN-0031",
+      "store_id": "A店",
+      "date": "2025-05-11",
+      "main_factor": "traffic",
+      "dimensions": [
+        "traffic",
+        "dish",
+        "ticket"
+      ],
+      "summary": "菜单提价后价格敏感客群流失,客流下降 12%,客单小幅上升。",
+      "actions": [
+        "对价格敏感单品做小规格版本",
+        "观察两周价格弹性再调整",
+        "会员价与正价分层"
+      ],
+      "tags": [
+        "菜单涨价",
+        "客流",
+        "客单"
+      ],
+      "symptoms": [
+        "客流同比下降 12%",
+        "价格敏感客群流失"
+      ],
+      "metrics_snapshot": {
+        "traffic.pct_change": -12,
+        "revenue.pct_change": -7.8,
+        "sample_days": 7
+      },
+      "outcome": "调价两周后客流趋稳",
+      "effective_from": "2025-05-11",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1746921600.0,
+      "updated_at": 1746921600.0
+    },
+    {
+      "case_id": "CASE-SYN-0032",
+      "store_id": "B店",
+      "date": "2025-05-16",
+      "main_factor": "traffic",
+      "dimensions": [
+        "traffic",
+        "dish",
+        "ticket"
+      ],
+      "summary": "菜单提价后价格敏感客群流失,客流下降 14%,客单小幅上升。",
+      "actions": [
+        "对价格敏感单品做小规格版本",
+        "观察两周价格弹性再调整",
+        "会员价与正价分层"
+      ],
+      "tags": [
+        "菜单涨价",
+        "客流",
+        "客单"
+      ],
+      "symptoms": [
+        "客流同比下降 14%",
+        "价格敏感客群流失"
+      ],
+      "metrics_snapshot": {
+        "traffic.pct_change": -14,
+        "revenue.pct_change": -9.1,
+        "sample_days": 7
+      },
+      "outcome": "调价两周后客流趋稳",
+      "effective_from": "2025-05-16",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1747353600.0,
+      "updated_at": 1747353600.0
+    },
+    {
+      "case_id": "CASE-SYN-0033",
+      "store_id": "C店",
+      "date": "2025-05-21",
+      "main_factor": "traffic",
+      "dimensions": [
+        "traffic",
+        "dish",
+        "ticket"
+      ],
+      "summary": "菜单提价后价格敏感客群流失,客流下降 16%,客单小幅上升。",
+      "actions": [
+        "对价格敏感单品做小规格版本",
+        "观察两周价格弹性再调整",
+        "会员价与正价分层"
+      ],
+      "tags": [
+        "菜单涨价",
+        "客流",
+        "客单"
+      ],
+      "symptoms": [
+        "客流同比下降 16%",
+        "价格敏感客群流失"
+      ],
+      "metrics_snapshot": {
+        "traffic.pct_change": -16,
+        "revenue.pct_change": -10.4,
+        "sample_days": 7
+      },
+      "outcome": "调价两周后客流趋稳",
+      "effective_from": "2025-05-21",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1747785600.0,
+      "updated_at": 1747785600.0
+    },
+    {
+      "case_id": "CASE-SYN-0034",
+      "store_id": "D店",
+      "date": "2025-05-26",
+      "main_factor": "traffic",
+      "dimensions": [
+        "traffic",
+        "dish",
+        "ticket"
+      ],
+      "summary": "菜单提价后价格敏感客群流失,客流下降 18%,客单小幅上升。",
+      "actions": [
+        "对价格敏感单品做小规格版本",
+        "观察两周价格弹性再调整",
+        "会员价与正价分层"
+      ],
+      "tags": [
+        "菜单涨价",
+        "客流",
+        "客单"
+      ],
+      "symptoms": [
+        "客流同比下降 18%",
+        "价格敏感客群流失"
+      ],
+      "metrics_snapshot": {
+        "traffic.pct_change": -18,
+        "revenue.pct_change": -11.7,
+        "sample_days": 7
+      },
+      "outcome": "调价两周后客流趋稳",
+      "effective_from": "2025-05-26",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1748217600.0,
+      "updated_at": 1748217600.0
+    },
+    {
+      "case_id": "CASE-SYN-0035",
+      "store_id": "E店",
+      "date": "2025-05-31",
+      "main_factor": "traffic",
+      "dimensions": [
+        "traffic",
+        "dish",
+        "ticket"
+      ],
+      "summary": "菜单提价后价格敏感客群流失,客流下降 20%,客单小幅上升。",
+      "actions": [
+        "对价格敏感单品做小规格版本",
+        "观察两周价格弹性再调整",
+        "会员价与正价分层"
+      ],
+      "tags": [
+        "菜单涨价",
+        "客流",
+        "客单"
+      ],
+      "symptoms": [
+        "客流同比下降 20%",
+        "价格敏感客群流失"
+      ],
+      "metrics_snapshot": {
+        "traffic.pct_change": -20,
+        "revenue.pct_change": -13.0,
+        "sample_days": 7
+      },
+      "outcome": "调价两周后客流趋稳",
+      "effective_from": "2025-05-31",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1748649600.0,
+      "updated_at": 1748649600.0
+    },
+    {
+      "case_id": "CASE-SYN-0036",
+      "store_id": "F店",
+      "date": "2025-06-05",
+      "main_factor": "traffic",
+      "dimensions": [
+        "traffic",
+        "dish",
+        "ticket"
+      ],
+      "summary": "菜单提价后价格敏感客群流失,客流下降 22%,客单小幅上升。",
+      "actions": [
+        "对价格敏感单品做小规格版本",
+        "观察两周价格弹性再调整",
+        "会员价与正价分层"
+      ],
+      "tags": [
+        "菜单涨价",
+        "客流",
+        "客单"
+      ],
+      "symptoms": [
+        "客流同比下降 22%",
+        "价格敏感客群流失"
+      ],
+      "metrics_snapshot": {
+        "traffic.pct_change": -22,
+        "revenue.pct_change": -14.3,
+        "sample_days": 7
+      },
+      "outcome": "调价两周后客流趋稳",
+      "effective_from": "2025-06-05",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1749081600.0,
+      "updated_at": 1749081600.0
+    },
+    {
+      "case_id": "CASE-SYN-0037",
+      "store_id": "A店",
+      "date": "2025-05-28",
+      "main_factor": "traffic",
+      "dimensions": [
+        "traffic",
+        "rating",
+        "channels",
+        "external"
+      ],
+      "summary": "社交平台出现食安投诉,门店口碑受影响,客流下降 15%;整改后差评回落。",
+      "actions": [
+        "下架涉事批次并复检",
+        "公开整改与客服回访",
+        "加强后厨晨检与留样"
+      ],
+      "tags": [
+        "食安投诉",
+        "口碑",
+        "客流"
+      ],
+      "symptoms": [
+        "客流同比下降 15%",
+        "平台差评集中出现"
+      ],
+      "metrics_snapshot": {
+        "traffic.pct_change": -15,
+        "revenue.pct_change": -9.8,
+        "sample_days": 7
+      },
+      "outcome": "整改后差评回落",
+      "effective_from": "2025-05-28",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1748390400.0,
+      "updated_at": 1748390400.0
+    },
+    {
+      "case_id": "CASE-SYN-0038",
+      "store_id": "B店",
+      "date": "2025-06-02",
+      "main_factor": "traffic",
+      "dimensions": [
+        "traffic",
+        "rating",
+        "channels",
+        "external"
+      ],
+      "summary": "社交平台出现食安投诉,门店口碑受影响,客流下降 17%;整改后差评回落。",
+      "actions": [
+        "下架涉事批次并复检",
+        "公开整改与客服回访",
+        "加强后厨晨检与留样"
+      ],
+      "tags": [
+        "食安投诉",
+        "口碑",
+        "客流"
+      ],
+      "symptoms": [
+        "客流同比下降 17%",
+        "平台差评集中出现"
+      ],
+      "metrics_snapshot": {
+        "traffic.pct_change": -17,
+        "revenue.pct_change": -11.1,
+        "sample_days": 7
+      },
+      "outcome": "整改后差评回落",
+      "effective_from": "2025-06-02",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1748822400.0,
+      "updated_at": 1748822400.0
+    },
+    {
+      "case_id": "CASE-SYN-0039",
+      "store_id": "C店",
+      "date": "2025-06-07",
+      "main_factor": "traffic",
+      "dimensions": [
+        "traffic",
+        "rating",
+        "channels",
+        "external"
+      ],
+      "summary": "社交平台出现食安投诉,门店口碑受影响,客流下降 19%;整改后差评回落。",
+      "actions": [
+        "下架涉事批次并复检",
+        "公开整改与客服回访",
+        "加强后厨晨检与留样"
+      ],
+      "tags": [
+        "食安投诉",
+        "口碑",
+        "客流"
+      ],
+      "symptoms": [
+        "客流同比下降 19%",
+        "平台差评集中出现"
+      ],
+      "metrics_snapshot": {
+        "traffic.pct_change": -19,
+        "revenue.pct_change": -12.3,
+        "sample_days": 7
+      },
+      "outcome": "整改后差评回落",
+      "effective_from": "2025-06-07",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1749254400.0,
+      "updated_at": 1749254400.0
+    },
+    {
+      "case_id": "CASE-SYN-0040",
+      "store_id": "D店",
+      "date": "2025-06-12",
+      "main_factor": "traffic",
+      "dimensions": [
+        "traffic",
+        "rating",
+        "channels",
+        "external"
+      ],
+      "summary": "社交平台出现食安投诉,门店口碑受影响,客流下降 21%;整改后差评回落。",
+      "actions": [
+        "下架涉事批次并复检",
+        "公开整改与客服回访",
+        "加强后厨晨检与留样"
+      ],
+      "tags": [
+        "食安投诉",
+        "口碑",
+        "客流"
+      ],
+      "symptoms": [
+        "客流同比下降 21%",
+        "平台差评集中出现"
+      ],
+      "metrics_snapshot": {
+        "traffic.pct_change": -21,
+        "revenue.pct_change": -13.7,
+        "sample_days": 7
+      },
+      "outcome": "整改后差评回落",
+      "effective_from": "2025-06-12",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1749686400.0,
+      "updated_at": 1749686400.0
+    },
+    {
+      "case_id": "CASE-SYN-0041",
+      "store_id": "E店",
+      "date": "2025-06-17",
+      "main_factor": "traffic",
+      "dimensions": [
+        "traffic",
+        "rating",
+        "channels",
+        "external"
+      ],
+      "summary": "社交平台出现食安投诉,门店口碑受影响,客流下降 23%;整改后差评回落。",
+      "actions": [
+        "下架涉事批次并复检",
+        "公开整改与客服回访",
+        "加强后厨晨检与留样"
+      ],
+      "tags": [
+        "食安投诉",
+        "口碑",
+        "客流"
+      ],
+      "symptoms": [
+        "客流同比下降 23%",
+        "平台差评集中出现"
+      ],
+      "metrics_snapshot": {
+        "traffic.pct_change": -23,
+        "revenue.pct_change": -15.0,
+        "sample_days": 7
+      },
+      "outcome": "整改后差评回落",
+      "effective_from": "2025-06-17",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1750118400.0,
+      "updated_at": 1750118400.0
+    },
+    {
+      "case_id": "CASE-SYN-0042",
+      "store_id": "F店",
+      "date": "2025-06-22",
+      "main_factor": "traffic",
+      "dimensions": [
+        "traffic",
+        "rating",
+        "channels",
+        "external"
+      ],
+      "summary": "社交平台出现食安投诉,门店口碑受影响,客流下降 25%;整改后差评回落。",
+      "actions": [
+        "下架涉事批次并复检",
+        "公开整改与客服回访",
+        "加强后厨晨检与留样"
+      ],
+      "tags": [
+        "食安投诉",
+        "口碑",
+        "客流"
+      ],
+      "symptoms": [
+        "客流同比下降 25%",
+        "平台差评集中出现"
+      ],
+      "metrics_snapshot": {
+        "traffic.pct_change": -25,
+        "revenue.pct_change": -16.2,
+        "sample_days": 7
+      },
+      "outcome": "整改后差评回落",
+      "effective_from": "2025-06-22",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1750550400.0,
+      "updated_at": 1750550400.0
+    },
+    {
+      "case_id": "CASE-SYN-0043",
+      "store_id": "A店",
+      "date": "2025-06-14",
+      "main_factor": "traffic",
+      "dimensions": [
+        "traffic",
+        "periods",
+        "channels"
+      ],
+      "summary": "支付网络故障导致部分时段无法结算,有效营业时长缩短,客流下降 18%。",
+      "actions": [
+        "启用备用支付与离线结算",
+        "故障时段引导线上下单",
+        "补录订单并核对账目"
+      ],
+      "tags": [
+        "支付故障",
+        "时段",
+        "结算"
+      ],
+      "symptoms": [
+        "客流同比下降 18%",
+        "有效营业时段缩短"
+      ],
+      "metrics_snapshot": {
+        "traffic.pct_change": -18,
+        "revenue.pct_change": -11.7,
+        "sample_days": 7
+      },
+      "outcome": "故障修复后当日恢复",
+      "effective_from": "2025-06-14",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1749859200.0,
+      "updated_at": 1749859200.0
+    },
+    {
+      "case_id": "CASE-SYN-0044",
+      "store_id": "B店",
+      "date": "2025-06-19",
+      "main_factor": "traffic",
+      "dimensions": [
+        "traffic",
+        "periods",
+        "channels"
+      ],
+      "summary": "支付网络故障导致部分时段无法结算,有效营业时长缩短,客流下降 20%。",
+      "actions": [
+        "启用备用支付与离线结算",
+        "故障时段引导线上下单",
+        "补录订单并核对账目"
+      ],
+      "tags": [
+        "支付故障",
+        "时段",
+        "结算"
+      ],
+      "symptoms": [
+        "客流同比下降 20%",
+        "有效营业时段缩短"
+      ],
+      "metrics_snapshot": {
+        "traffic.pct_change": -20,
+        "revenue.pct_change": -13.0,
+        "sample_days": 7
+      },
+      "outcome": "故障修复后当日恢复",
+      "effective_from": "2025-06-19",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1750291200.0,
+      "updated_at": 1750291200.0
+    },
+    {
+      "case_id": "CASE-SYN-0045",
+      "store_id": "C店",
+      "date": "2025-06-24",
+      "main_factor": "traffic",
+      "dimensions": [
+        "traffic",
+        "periods",
+        "channels"
+      ],
+      "summary": "支付网络故障导致部分时段无法结算,有效营业时长缩短,客流下降 22%。",
+      "actions": [
+        "启用备用支付与离线结算",
+        "故障时段引导线上下单",
+        "补录订单并核对账目"
+      ],
+      "tags": [
+        "支付故障",
+        "时段",
+        "结算"
+      ],
+      "symptoms": [
+        "客流同比下降 22%",
+        "有效营业时段缩短"
+      ],
+      "metrics_snapshot": {
+        "traffic.pct_change": -22,
+        "revenue.pct_change": -14.3,
+        "sample_days": 7
+      },
+      "outcome": "故障修复后当日恢复",
+      "effective_from": "2025-06-24",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1750723200.0,
+      "updated_at": 1750723200.0
+    },
+    {
+      "case_id": "CASE-SYN-0046",
+      "store_id": "D店",
+      "date": "2025-06-29",
+      "main_factor": "traffic",
+      "dimensions": [
+        "traffic",
+        "periods",
+        "channels"
+      ],
+      "summary": "支付网络故障导致部分时段无法结算,有效营业时长缩短,客流下降 24%。",
+      "actions": [
+        "启用备用支付与离线结算",
+        "故障时段引导线上下单",
+        "补录订单并核对账目"
+      ],
+      "tags": [
+        "支付故障",
+        "时段",
+        "结算"
+      ],
+      "symptoms": [
+        "客流同比下降 24%",
+        "有效营业时段缩短"
+      ],
+      "metrics_snapshot": {
+        "traffic.pct_change": -24,
+        "revenue.pct_change": -15.6,
+        "sample_days": 7
+      },
+      "outcome": "故障修复后当日恢复",
+      "effective_from": "2025-06-29",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1751155200.0,
+      "updated_at": 1751155200.0
+    },
+    {
+      "case_id": "CASE-SYN-0047",
+      "store_id": "E店",
+      "date": "2025-07-04",
+      "main_factor": "traffic",
+      "dimensions": [
+        "traffic",
+        "periods",
+        "channels"
+      ],
+      "summary": "支付网络故障导致部分时段无法结算,有效营业时长缩短,客流下降 26%。",
+      "actions": [
+        "启用备用支付与离线结算",
+        "故障时段引导线上下单",
+        "补录订单并核对账目"
+      ],
+      "tags": [
+        "支付故障",
+        "时段",
+        "结算"
+      ],
+      "symptoms": [
+        "客流同比下降 26%",
+        "有效营业时段缩短"
+      ],
+      "metrics_snapshot": {
+        "traffic.pct_change": -26,
+        "revenue.pct_change": -16.9,
+        "sample_days": 7
+      },
+      "outcome": "故障修复后当日恢复",
+      "effective_from": "2025-07-04",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1751587200.0,
+      "updated_at": 1751587200.0
+    },
+    {
+      "case_id": "CASE-SYN-0048",
+      "store_id": "F店",
+      "date": "2025-07-09",
+      "main_factor": "traffic",
+      "dimensions": [
+        "traffic",
+        "periods",
+        "channels"
+      ],
+      "summary": "支付网络故障导致部分时段无法结算,有效营业时长缩短,客流下降 13%。",
+      "actions": [
+        "启用备用支付与离线结算",
+        "故障时段引导线上下单",
+        "补录订单并核对账目"
+      ],
+      "tags": [
+        "支付故障",
+        "时段",
+        "结算"
+      ],
+      "symptoms": [
+        "客流同比下降 13%",
+        "有效营业时段缩短"
+      ],
+      "metrics_snapshot": {
+        "traffic.pct_change": -13,
+        "revenue.pct_change": -8.5,
+        "sample_days": 7
+      },
+      "outcome": "故障修复后当日恢复",
+      "effective_from": "2025-07-09",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1752019200.0,
+      "updated_at": 1752019200.0
+    },
+    {
+      "case_id": "CASE-SYN-0049",
+      "store_id": "A店",
+      "date": "2025-07-01",
+      "main_factor": "ticket",
+      "dimensions": [
+        "ticket",
+        "dish",
+        "promotion"
+      ],
+      "summary": "大额优惠券投放拉低客单价 21%,客流小幅上升,毛利承压。",
+      "actions": [
+        "控制大额券发放数量与时段",
+        "设置毛利底线",
+        "活动后评估新客复购"
+      ],
+      "tags": [
+        "优惠券",
+        "客单下滑",
+        "毛利承压"
+      ],
+      "symptoms": [
+        "客单价同比下降 21%",
+        "毛利被折扣侵蚀"
+      ],
+      "metrics_snapshot": {
+        "ticket.pct_change": -21,
+        "revenue.pct_change": -11.6,
+        "sample_days": 7
+      },
+      "outcome": "活动结束后毛利修复",
+      "effective_from": "2025-07-01",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1751328000.0,
+      "updated_at": 1751328000.0
+    },
+    {
+      "case_id": "CASE-SYN-0050",
+      "store_id": "B店",
+      "date": "2025-07-06",
+      "main_factor": "ticket",
+      "dimensions": [
+        "ticket",
+        "dish",
+        "promotion"
+      ],
+      "summary": "大额优惠券投放拉低客单价 23%,客流小幅上升,毛利承压。",
+      "actions": [
+        "控制大额券发放数量与时段",
+        "设置毛利底线",
+        "活动后评估新客复购"
+      ],
+      "tags": [
+        "优惠券",
+        "客单下滑",
+        "毛利承压"
+      ],
+      "symptoms": [
+        "客单价同比下降 23%",
+        "毛利被折扣侵蚀"
+      ],
+      "metrics_snapshot": {
+        "ticket.pct_change": -23,
+        "revenue.pct_change": -12.7,
+        "sample_days": 7
+      },
+      "outcome": "活动结束后毛利修复",
+      "effective_from": "2025-07-06",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1751760000.0,
+      "updated_at": 1751760000.0
+    },
+    {
+      "case_id": "CASE-SYN-0051",
+      "store_id": "C店",
+      "date": "2025-07-11",
+      "main_factor": "ticket",
+      "dimensions": [
+        "ticket",
+        "dish",
+        "promotion"
+      ],
+      "summary": "大额优惠券投放拉低客单价 25%,客流小幅上升,毛利承压。",
+      "actions": [
+        "控制大额券发放数量与时段",
+        "设置毛利底线",
+        "活动后评估新客复购"
+      ],
+      "tags": [
+        "优惠券",
+        "客单下滑",
+        "毛利承压"
+      ],
+      "symptoms": [
+        "客单价同比下降 25%",
+        "毛利被折扣侵蚀"
+      ],
+      "metrics_snapshot": {
+        "ticket.pct_change": -25,
+        "revenue.pct_change": -13.8,
+        "sample_days": 7
+      },
+      "outcome": "活动结束后毛利修复",
+      "effective_from": "2025-07-11",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1752192000.0,
+      "updated_at": 1752192000.0
+    },
+    {
+      "case_id": "CASE-SYN-0052",
+      "store_id": "D店",
+      "date": "2025-07-16",
+      "main_factor": "ticket",
+      "dimensions": [
+        "ticket",
+        "dish",
+        "promotion"
+      ],
+      "summary": "大额优惠券投放拉低客单价 12%,客流小幅上升,毛利承压。",
+      "actions": [
+        "控制大额券发放数量与时段",
+        "设置毛利底线",
+        "活动后评估新客复购"
+      ],
+      "tags": [
+        "优惠券",
+        "客单下滑",
+        "毛利承压"
+      ],
+      "symptoms": [
+        "客单价同比下降 12%",
+        "毛利被折扣侵蚀"
+      ],
+      "metrics_snapshot": {
+        "ticket.pct_change": -12,
+        "revenue.pct_change": -6.6,
+        "sample_days": 7
+      },
+      "outcome": "活动结束后毛利修复",
+      "effective_from": "2025-07-16",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1752624000.0,
+      "updated_at": 1752624000.0
+    },
+    {
+      "case_id": "CASE-SYN-0053",
+      "store_id": "E店",
+      "date": "2025-07-21",
+      "main_factor": "ticket",
+      "dimensions": [
+        "ticket",
+        "dish",
+        "promotion"
+      ],
+      "summary": "大额优惠券投放拉低客单价 14%,客流小幅上升,毛利承压。",
+      "actions": [
+        "控制大额券发放数量与时段",
+        "设置毛利底线",
+        "活动后评估新客复购"
+      ],
+      "tags": [
+        "优惠券",
+        "客单下滑",
+        "毛利承压"
+      ],
+      "symptoms": [
+        "客单价同比下降 14%",
+        "毛利被折扣侵蚀"
+      ],
+      "metrics_snapshot": {
+        "ticket.pct_change": -14,
+        "revenue.pct_change": -7.7,
+        "sample_days": 7
+      },
+      "outcome": "活动结束后毛利修复",
+      "effective_from": "2025-07-21",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1753056000.0,
+      "updated_at": 1753056000.0
+    },
+    {
+      "case_id": "CASE-SYN-0054",
+      "store_id": "F店",
+      "date": "2025-07-26",
+      "main_factor": "ticket",
+      "dimensions": [
+        "ticket",
+        "dish",
+        "promotion"
+      ],
+      "summary": "大额优惠券投放拉低客单价 16%,客流小幅上升,毛利承压。",
+      "actions": [
+        "控制大额券发放数量与时段",
+        "设置毛利底线",
+        "活动后评估新客复购"
+      ],
+      "tags": [
+        "优惠券",
+        "客单下滑",
+        "毛利承压"
+      ],
+      "symptoms": [
+        "客单价同比下降 16%",
+        "毛利被折扣侵蚀"
+      ],
+      "metrics_snapshot": {
+        "ticket.pct_change": -16,
+        "revenue.pct_change": -8.8,
+        "sample_days": 7
+      },
+      "outcome": "活动结束后毛利修复",
+      "effective_from": "2025-07-26",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1753488000.0,
+      "updated_at": 1753488000.0
+    },
+    {
+      "case_id": "CASE-SYN-0055",
+      "store_id": "A店",
+      "date": "2025-07-18",
+      "main_factor": "ticket",
+      "dimensions": [
+        "ticket",
+        "dish"
+      ],
+      "summary": "低价产品占比上升,品类结构变化拉低客单价 24%,连带销售下降。",
+      "actions": [
+        "提高高毛利主推品曝光",
+        "设计组合套餐提升连带",
+        "限制低价产品占比"
+      ],
+      "tags": [
+        "品类结构",
+        "低价产品",
+        "连带销售"
+      ],
+      "symptoms": [
+        "客单价同比下降 24%",
+        "低价产品占比上升"
+      ],
+      "metrics_snapshot": {
+        "ticket.pct_change": -24,
+        "revenue.pct_change": -13.2,
+        "sample_days": 7
+      },
+      "outcome": "调整产品结构后改善",
+      "effective_from": "2025-07-18",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1752796800.0,
+      "updated_at": 1752796800.0
+    },
+    {
+      "case_id": "CASE-SYN-0056",
+      "store_id": "B店",
+      "date": "2025-07-23",
+      "main_factor": "ticket",
+      "dimensions": [
+        "ticket",
+        "dish"
+      ],
+      "summary": "低价产品占比上升,品类结构变化拉低客单价 26%,连带销售下降。",
+      "actions": [
+        "提高高毛利主推品曝光",
+        "设计组合套餐提升连带",
+        "限制低价产品占比"
+      ],
+      "tags": [
+        "品类结构",
+        "低价产品",
+        "连带销售"
+      ],
+      "symptoms": [
+        "客单价同比下降 26%",
+        "低价产品占比上升"
+      ],
+      "metrics_snapshot": {
+        "ticket.pct_change": -26,
+        "revenue.pct_change": -14.3,
+        "sample_days": 7
+      },
+      "outcome": "调整产品结构后改善",
+      "effective_from": "2025-07-23",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1753228800.0,
+      "updated_at": 1753228800.0
+    },
+    {
+      "case_id": "CASE-SYN-0057",
+      "store_id": "C店",
+      "date": "2025-07-28",
+      "main_factor": "ticket",
+      "dimensions": [
+        "ticket",
+        "dish"
+      ],
+      "summary": "低价产品占比上升,品类结构变化拉低客单价 13%,连带销售下降。",
+      "actions": [
+        "提高高毛利主推品曝光",
+        "设计组合套餐提升连带",
+        "限制低价产品占比"
+      ],
+      "tags": [
+        "品类结构",
+        "低价产品",
+        "连带销售"
+      ],
+      "symptoms": [
+        "客单价同比下降 13%",
+        "低价产品占比上升"
+      ],
+      "metrics_snapshot": {
+        "ticket.pct_change": -13,
+        "revenue.pct_change": -7.2,
+        "sample_days": 7
+      },
+      "outcome": "调整产品结构后改善",
+      "effective_from": "2025-07-28",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1753660800.0,
+      "updated_at": 1753660800.0
+    },
+    {
+      "case_id": "CASE-SYN-0058",
+      "store_id": "D店",
+      "date": "2025-08-02",
+      "main_factor": "ticket",
+      "dimensions": [
+        "ticket",
+        "dish"
+      ],
+      "summary": "低价产品占比上升,品类结构变化拉低客单价 15%,连带销售下降。",
+      "actions": [
+        "提高高毛利主推品曝光",
+        "设计组合套餐提升连带",
+        "限制低价产品占比"
+      ],
+      "tags": [
+        "品类结构",
+        "低价产品",
+        "连带销售"
+      ],
+      "symptoms": [
+        "客单价同比下降 15%",
+        "低价产品占比上升"
+      ],
+      "metrics_snapshot": {
+        "ticket.pct_change": -15,
+        "revenue.pct_change": -8.2,
+        "sample_days": 7
+      },
+      "outcome": "调整产品结构后改善",
+      "effective_from": "2025-08-02",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1754092800.0,
+      "updated_at": 1754092800.0
+    },
+    {
+      "case_id": "CASE-SYN-0059",
+      "store_id": "E店",
+      "date": "2025-08-07",
+      "main_factor": "ticket",
+      "dimensions": [
+        "ticket",
+        "dish"
+      ],
+      "summary": "低价产品占比上升,品类结构变化拉低客单价 17%,连带销售下降。",
+      "actions": [
+        "提高高毛利主推品曝光",
+        "设计组合套餐提升连带",
+        "限制低价产品占比"
+      ],
+      "tags": [
+        "品类结构",
+        "低价产品",
+        "连带销售"
+      ],
+      "symptoms": [
+        "客单价同比下降 17%",
+        "低价产品占比上升"
+      ],
+      "metrics_snapshot": {
+        "ticket.pct_change": -17,
+        "revenue.pct_change": -9.4,
+        "sample_days": 7
+      },
+      "outcome": "调整产品结构后改善",
+      "effective_from": "2025-08-07",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1754524800.0,
+      "updated_at": 1754524800.0
+    },
+    {
+      "case_id": "CASE-SYN-0060",
+      "store_id": "F店",
+      "date": "2025-08-12",
+      "main_factor": "ticket",
+      "dimensions": [
+        "ticket",
+        "dish"
+      ],
+      "summary": "低价产品占比上升,品类结构变化拉低客单价 19%,连带销售下降。",
+      "actions": [
+        "提高高毛利主推品曝光",
+        "设计组合套餐提升连带",
+        "限制低价产品占比"
+      ],
+      "tags": [
+        "品类结构",
+        "低价产品",
+        "连带销售"
+      ],
+      "symptoms": [
+        "客单价同比下降 19%",
+        "低价产品占比上升"
+      ],
+      "metrics_snapshot": {
+        "ticket.pct_change": -19,
+        "revenue.pct_change": -10.5,
+        "sample_days": 7
+      },
+      "outcome": "调整产品结构后改善",
+      "effective_from": "2025-08-12",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1754956800.0,
+      "updated_at": 1754956800.0
+    },
+    {
+      "case_id": "CASE-SYN-0061",
+      "store_id": "A店",
+      "date": "2025-08-04",
+      "main_factor": "ticket",
+      "dimensions": [
+        "ticket",
+        "promotion"
+      ],
+      "summary": "会员折扣权益叠加导致客单价下降 12%,复购频次上升但毛利收窄。",
+      "actions": [
+        "收紧会员折扣叠加规则",
+        "用积分替代直接降价",
+        "分层运营高价值会员"
+      ],
+      "tags": [
+        "会员权益",
+        "折扣",
+        "客单"
+      ],
+      "symptoms": [
+        "客单价同比下降 12%",
+        "会员折扣透支客单"
+      ],
+      "metrics_snapshot": {
+        "ticket.pct_change": -12,
+        "revenue.pct_change": -6.6,
+        "sample_days": 7
+      },
+      "outcome": "收紧权益后客单回升",
+      "effective_from": "2025-08-04",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1754265600.0,
+      "updated_at": 1754265600.0
+    },
+    {
+      "case_id": "CASE-SYN-0062",
+      "store_id": "B店",
+      "date": "2025-08-09",
+      "main_factor": "ticket",
+      "dimensions": [
+        "ticket",
+        "promotion"
+      ],
+      "summary": "会员折扣权益叠加导致客单价下降 14%,复购频次上升但毛利收窄。",
+      "actions": [
+        "收紧会员折扣叠加规则",
+        "用积分替代直接降价",
+        "分层运营高价值会员"
+      ],
+      "tags": [
+        "会员权益",
+        "折扣",
+        "客单"
+      ],
+      "symptoms": [
+        "客单价同比下降 14%",
+        "会员折扣透支客单"
+      ],
+      "metrics_snapshot": {
+        "ticket.pct_change": -14,
+        "revenue.pct_change": -7.7,
+        "sample_days": 7
+      },
+      "outcome": "收紧权益后客单回升",
+      "effective_from": "2025-08-09",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1754697600.0,
+      "updated_at": 1754697600.0
+    },
+    {
+      "case_id": "CASE-SYN-0063",
+      "store_id": "C店",
+      "date": "2025-08-14",
+      "main_factor": "ticket",
+      "dimensions": [
+        "ticket",
+        "promotion"
+      ],
+      "summary": "会员折扣权益叠加导致客单价下降 16%,复购频次上升但毛利收窄。",
+      "actions": [
+        "收紧会员折扣叠加规则",
+        "用积分替代直接降价",
+        "分层运营高价值会员"
+      ],
+      "tags": [
+        "会员权益",
+        "折扣",
+        "客单"
+      ],
+      "symptoms": [
+        "客单价同比下降 16%",
+        "会员折扣透支客单"
+      ],
+      "metrics_snapshot": {
+        "ticket.pct_change": -16,
+        "revenue.pct_change": -8.8,
+        "sample_days": 7
+      },
+      "outcome": "收紧权益后客单回升",
+      "effective_from": "2025-08-14",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1755129600.0,
+      "updated_at": 1755129600.0
+    },
+    {
+      "case_id": "CASE-SYN-0064",
+      "store_id": "D店",
+      "date": "2025-08-19",
+      "main_factor": "ticket",
+      "dimensions": [
+        "ticket",
+        "promotion"
+      ],
+      "summary": "会员折扣权益叠加导致客单价下降 18%,复购频次上升但毛利收窄。",
+      "actions": [
+        "收紧会员折扣叠加规则",
+        "用积分替代直接降价",
+        "分层运营高价值会员"
+      ],
+      "tags": [
+        "会员权益",
+        "折扣",
+        "客单"
+      ],
+      "symptoms": [
+        "客单价同比下降 18%",
+        "会员折扣透支客单"
+      ],
+      "metrics_snapshot": {
+        "ticket.pct_change": -18,
+        "revenue.pct_change": -9.9,
+        "sample_days": 7
+      },
+      "outcome": "收紧权益后客单回升",
+      "effective_from": "2025-08-19",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1755561600.0,
+      "updated_at": 1755561600.0
+    },
+    {
+      "case_id": "CASE-SYN-0065",
+      "store_id": "E店",
+      "date": "2025-08-24",
+      "main_factor": "ticket",
+      "dimensions": [
+        "ticket",
+        "promotion"
+      ],
+      "summary": "会员折扣权益叠加导致客单价下降 20%,复购频次上升但毛利收窄。",
+      "actions": [
+        "收紧会员折扣叠加规则",
+        "用积分替代直接降价",
+        "分层运营高价值会员"
+      ],
+      "tags": [
+        "会员权益",
+        "折扣",
+        "客单"
+      ],
+      "symptoms": [
+        "客单价同比下降 20%",
+        "会员折扣透支客单"
+      ],
+      "metrics_snapshot": {
+        "ticket.pct_change": -20,
+        "revenue.pct_change": -11.0,
+        "sample_days": 7
+      },
+      "outcome": "收紧权益后客单回升",
+      "effective_from": "2025-08-24",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1755993600.0,
+      "updated_at": 1755993600.0
+    },
+    {
+      "case_id": "CASE-SYN-0066",
+      "store_id": "F店",
+      "date": "2025-08-29",
+      "main_factor": "ticket",
+      "dimensions": [
+        "ticket",
+        "promotion"
+      ],
+      "summary": "会员折扣权益叠加导致客单价下降 22%,复购频次上升但毛利收窄。",
+      "actions": [
+        "收紧会员折扣叠加规则",
+        "用积分替代直接降价",
+        "分层运营高价值会员"
+      ],
+      "tags": [
+        "会员权益",
+        "折扣",
+        "客单"
+      ],
+      "symptoms": [
+        "客单价同比下降 22%",
+        "会员折扣透支客单"
+      ],
+      "metrics_snapshot": {
+        "ticket.pct_change": -22,
+        "revenue.pct_change": -12.1,
+        "sample_days": 7
+      },
+      "outcome": "收紧权益后客单回升",
+      "effective_from": "2025-08-29",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1756425600.0,
+      "updated_at": 1756425600.0
+    },
+    {
+      "case_id": "CASE-SYN-0067",
+      "store_id": "A店",
+      "date": "2025-08-21",
+      "main_factor": "ticket",
+      "dimensions": [
+        "ticket",
+        "channels"
+      ],
+      "summary": "外卖平台佣金与配送费调整,渠道毛利下降,客单价下滑 15%。",
+      "actions": [
+        "重算外卖渠道毛利模型",
+        "调整满减与配送费",
+        "提升高毛利单品在外卖菜单的权重"
+      ],
+      "tags": [
+        "外卖佣金",
+        "渠道结构",
+        "毛利"
+      ],
+      "symptoms": [
+        "客单价同比下降 15%",
+        "外卖渠道毛利承压"
+      ],
+      "metrics_snapshot": {
+        "ticket.pct_change": -15,
+        "revenue.pct_change": -8.2,
+        "sample_days": 7
+      },
+      "outcome": "调整渠道策略后毛利改善",
+      "effective_from": "2025-08-21",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1755734400.0,
+      "updated_at": 1755734400.0
+    },
+    {
+      "case_id": "CASE-SYN-0068",
+      "store_id": "B店",
+      "date": "2025-08-26",
+      "main_factor": "ticket",
+      "dimensions": [
+        "ticket",
+        "channels"
+      ],
+      "summary": "外卖平台佣金与配送费调整,渠道毛利下降,客单价下滑 17%。",
+      "actions": [
+        "重算外卖渠道毛利模型",
+        "调整满减与配送费",
+        "提升高毛利单品在外卖菜单的权重"
+      ],
+      "tags": [
+        "外卖佣金",
+        "渠道结构",
+        "毛利"
+      ],
+      "symptoms": [
+        "客单价同比下降 17%",
+        "外卖渠道毛利承压"
+      ],
+      "metrics_snapshot": {
+        "ticket.pct_change": -17,
+        "revenue.pct_change": -9.4,
+        "sample_days": 7
+      },
+      "outcome": "调整渠道策略后毛利改善",
+      "effective_from": "2025-08-26",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1756166400.0,
+      "updated_at": 1756166400.0
+    },
+    {
+      "case_id": "CASE-SYN-0069",
+      "store_id": "C店",
+      "date": "2025-08-31",
+      "main_factor": "ticket",
+      "dimensions": [
+        "ticket",
+        "channels"
+      ],
+      "summary": "外卖平台佣金与配送费调整,渠道毛利下降,客单价下滑 19%。",
+      "actions": [
+        "重算外卖渠道毛利模型",
+        "调整满减与配送费",
+        "提升高毛利单品在外卖菜单的权重"
+      ],
+      "tags": [
+        "外卖佣金",
+        "渠道结构",
+        "毛利"
+      ],
+      "symptoms": [
+        "客单价同比下降 19%",
+        "外卖渠道毛利承压"
+      ],
+      "metrics_snapshot": {
+        "ticket.pct_change": -19,
+        "revenue.pct_change": -10.5,
+        "sample_days": 7
+      },
+      "outcome": "调整渠道策略后毛利改善",
+      "effective_from": "2025-08-31",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1756598400.0,
+      "updated_at": 1756598400.0
+    },
+    {
+      "case_id": "CASE-SYN-0070",
+      "store_id": "D店",
+      "date": "2025-09-05",
+      "main_factor": "ticket",
+      "dimensions": [
+        "ticket",
+        "channels"
+      ],
+      "summary": "外卖平台佣金与配送费调整,渠道毛利下降,客单价下滑 21%。",
+      "actions": [
+        "重算外卖渠道毛利模型",
+        "调整满减与配送费",
+        "提升高毛利单品在外卖菜单的权重"
+      ],
+      "tags": [
+        "外卖佣金",
+        "渠道结构",
+        "毛利"
+      ],
+      "symptoms": [
+        "客单价同比下降 21%",
+        "外卖渠道毛利承压"
+      ],
+      "metrics_snapshot": {
+        "ticket.pct_change": -21,
+        "revenue.pct_change": -11.6,
+        "sample_days": 7
+      },
+      "outcome": "调整渠道策略后毛利改善",
+      "effective_from": "2025-09-05",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1757030400.0,
+      "updated_at": 1757030400.0
+    },
+    {
+      "case_id": "CASE-SYN-0071",
+      "store_id": "E店",
+      "date": "2025-09-10",
+      "main_factor": "ticket",
+      "dimensions": [
+        "ticket",
+        "channels"
+      ],
+      "summary": "外卖平台佣金与配送费调整,渠道毛利下降,客单价下滑 23%。",
+      "actions": [
+        "重算外卖渠道毛利模型",
+        "调整满减与配送费",
+        "提升高毛利单品在外卖菜单的权重"
+      ],
+      "tags": [
+        "外卖佣金",
+        "渠道结构",
+        "毛利"
+      ],
+      "symptoms": [
+        "客单价同比下降 23%",
+        "外卖渠道毛利承压"
+      ],
+      "metrics_snapshot": {
+        "ticket.pct_change": -23,
+        "revenue.pct_change": -12.7,
+        "sample_days": 7
+      },
+      "outcome": "调整渠道策略后毛利改善",
+      "effective_from": "2025-09-10",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1757462400.0,
+      "updated_at": 1757462400.0
+    },
+    {
+      "case_id": "CASE-SYN-0072",
+      "store_id": "F店",
+      "date": "2025-09-15",
+      "main_factor": "ticket",
+      "dimensions": [
+        "ticket",
+        "channels"
+      ],
+      "summary": "外卖平台佣金与配送费调整,渠道毛利下降,客单价下滑 25%。",
+      "actions": [
+        "重算外卖渠道毛利模型",
+        "调整满减与配送费",
+        "提升高毛利单品在外卖菜单的权重"
+      ],
+      "tags": [
+        "外卖佣金",
+        "渠道结构",
+        "毛利"
+      ],
+      "symptoms": [
+        "客单价同比下降 25%",
+        "外卖渠道毛利承压"
+      ],
+      "metrics_snapshot": {
+        "ticket.pct_change": -25,
+        "revenue.pct_change": -13.8,
+        "sample_days": 7
+      },
+      "outcome": "调整渠道策略后毛利改善",
+      "effective_from": "2025-09-15",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1757894400.0,
+      "updated_at": 1757894400.0
+    },
+    {
+      "case_id": "CASE-SYN-0073",
+      "store_id": "A店",
+      "date": "2025-09-07",
+      "main_factor": "ticket",
+      "dimensions": [
+        "ticket",
+        "promotion",
+        "dish"
+      ],
+      "summary": "高频促销蚕食正价销售,客单价下降 18%,活动 ROI 低于预期。",
+      "actions": [
+        "暂停高频深度折扣",
+        "用限时活动替代常态化促销",
+        "监控活动 ROI 与毛利"
+      ],
+      "tags": [
+        "促销蚕食",
+        "毛利",
+        "客单"
+      ],
+      "symptoms": [
+        "客单价同比下降 18%",
+        "正价销售被促销蚕食"
+      ],
+      "metrics_snapshot": {
+        "ticket.pct_change": -18,
+        "revenue.pct_change": -9.9,
+        "sample_days": 7
+      },
+      "outcome": "停止高频促销后恢复",
+      "effective_from": "2025-09-07",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1757203200.0,
+      "updated_at": 1757203200.0
+    },
+    {
+      "case_id": "CASE-SYN-0074",
+      "store_id": "B店",
+      "date": "2025-09-12",
+      "main_factor": "ticket",
+      "dimensions": [
+        "ticket",
+        "promotion",
+        "dish"
+      ],
+      "summary": "高频促销蚕食正价销售,客单价下降 20%,活动 ROI 低于预期。",
+      "actions": [
+        "暂停高频深度折扣",
+        "用限时活动替代常态化促销",
+        "监控活动 ROI 与毛利"
+      ],
+      "tags": [
+        "促销蚕食",
+        "毛利",
+        "客单"
+      ],
+      "symptoms": [
+        "客单价同比下降 20%",
+        "正价销售被促销蚕食"
+      ],
+      "metrics_snapshot": {
+        "ticket.pct_change": -20,
+        "revenue.pct_change": -11.0,
+        "sample_days": 7
+      },
+      "outcome": "停止高频促销后恢复",
+      "effective_from": "2025-09-12",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1757635200.0,
+      "updated_at": 1757635200.0
+    },
+    {
+      "case_id": "CASE-SYN-0075",
+      "store_id": "C店",
+      "date": "2025-09-17",
+      "main_factor": "ticket",
+      "dimensions": [
+        "ticket",
+        "promotion",
+        "dish"
+      ],
+      "summary": "高频促销蚕食正价销售,客单价下降 22%,活动 ROI 低于预期。",
+      "actions": [
+        "暂停高频深度折扣",
+        "用限时活动替代常态化促销",
+        "监控活动 ROI 与毛利"
+      ],
+      "tags": [
+        "促销蚕食",
+        "毛利",
+        "客单"
+      ],
+      "symptoms": [
+        "客单价同比下降 22%",
+        "正价销售被促销蚕食"
+      ],
+      "metrics_snapshot": {
+        "ticket.pct_change": -22,
+        "revenue.pct_change": -12.1,
+        "sample_days": 7
+      },
+      "outcome": "停止高频促销后恢复",
+      "effective_from": "2025-09-17",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1758067200.0,
+      "updated_at": 1758067200.0
+    },
+    {
+      "case_id": "CASE-SYN-0076",
+      "store_id": "D店",
+      "date": "2025-09-22",
+      "main_factor": "ticket",
+      "dimensions": [
+        "ticket",
+        "promotion",
+        "dish"
+      ],
+      "summary": "高频促销蚕食正价销售,客单价下降 24%,活动 ROI 低于预期。",
+      "actions": [
+        "暂停高频深度折扣",
+        "用限时活动替代常态化促销",
+        "监控活动 ROI 与毛利"
+      ],
+      "tags": [
+        "促销蚕食",
+        "毛利",
+        "客单"
+      ],
+      "symptoms": [
+        "客单价同比下降 24%",
+        "正价销售被促销蚕食"
+      ],
+      "metrics_snapshot": {
+        "ticket.pct_change": -24,
+        "revenue.pct_change": -13.2,
+        "sample_days": 7
+      },
+      "outcome": "停止高频促销后恢复",
+      "effective_from": "2025-09-22",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1758499200.0,
+      "updated_at": 1758499200.0
+    },
+    {
+      "case_id": "CASE-SYN-0077",
+      "store_id": "E店",
+      "date": "2025-09-27",
+      "main_factor": "ticket",
+      "dimensions": [
+        "ticket",
+        "promotion",
+        "dish"
+      ],
+      "summary": "高频促销蚕食正价销售,客单价下降 26%,活动 ROI 低于预期。",
+      "actions": [
+        "暂停高频深度折扣",
+        "用限时活动替代常态化促销",
+        "监控活动 ROI 与毛利"
+      ],
+      "tags": [
+        "促销蚕食",
+        "毛利",
+        "客单"
+      ],
+      "symptoms": [
+        "客单价同比下降 26%",
+        "正价销售被促销蚕食"
+      ],
+      "metrics_snapshot": {
+        "ticket.pct_change": -26,
+        "revenue.pct_change": -14.3,
+        "sample_days": 7
+      },
+      "outcome": "停止高频促销后恢复",
+      "effective_from": "2025-09-27",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1758931200.0,
+      "updated_at": 1758931200.0
+    },
+    {
+      "case_id": "CASE-SYN-0078",
+      "store_id": "F店",
+      "date": "2025-10-02",
+      "main_factor": "ticket",
+      "dimensions": [
+        "ticket",
+        "promotion",
+        "dish"
+      ],
+      "summary": "高频促销蚕食正价销售,客单价下降 13%,活动 ROI 低于预期。",
+      "actions": [
+        "暂停高频深度折扣",
+        "用限时活动替代常态化促销",
+        "监控活动 ROI 与毛利"
+      ],
+      "tags": [
+        "促销蚕食",
+        "毛利",
+        "客单"
+      ],
+      "symptoms": [
+        "客单价同比下降 13%",
+        "正价销售被促销蚕食"
+      ],
+      "metrics_snapshot": {
+        "ticket.pct_change": -13,
+        "revenue.pct_change": -7.2,
+        "sample_days": 7
+      },
+      "outcome": "停止高频促销后恢复",
+      "effective_from": "2025-10-02",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1759363200.0,
+      "updated_at": 1759363200.0
+    },
+    {
+      "case_id": "CASE-SYN-0079",
+      "store_id": "A店",
+      "date": "2025-09-24",
+      "main_factor": "traffic",
+      "dimensions": [
+        "traffic",
+        "channels"
+      ],
+      "summary": "外卖平台排名下滑导致曝光减少,客流下降 21%,线上订单同步走弱。",
+      "actions": [
+        "优化外卖菜单与出餐时长",
+        "参与平台流量活动",
+        "提升评分与好评率"
+      ],
+      "tags": [
+        "外卖排名",
+        "曝光",
+        "客流"
+      ],
+      "symptoms": [
+        "客流同比下降 21%",
+        "外卖曝光与订单下滑"
+      ],
+      "metrics_snapshot": {
+        "traffic.pct_change": -21,
+        "revenue.pct_change": -13.7,
+        "sample_days": 7
+      },
+      "outcome": "优化菜单后排位回升",
+      "effective_from": "2025-09-24",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1758672000.0,
+      "updated_at": 1758672000.0
+    },
+    {
+      "case_id": "CASE-SYN-0080",
+      "store_id": "B店",
+      "date": "2025-09-29",
+      "main_factor": "traffic",
+      "dimensions": [
+        "traffic",
+        "channels"
+      ],
+      "summary": "外卖平台排名下滑导致曝光减少,客流下降 23%,线上订单同步走弱。",
+      "actions": [
+        "优化外卖菜单与出餐时长",
+        "参与平台流量活动",
+        "提升评分与好评率"
+      ],
+      "tags": [
+        "外卖排名",
+        "曝光",
+        "客流"
+      ],
+      "symptoms": [
+        "客流同比下降 23%",
+        "外卖曝光与订单下滑"
+      ],
+      "metrics_snapshot": {
+        "traffic.pct_change": -23,
+        "revenue.pct_change": -15.0,
+        "sample_days": 7
+      },
+      "outcome": "优化菜单后排位回升",
+      "effective_from": "2025-09-29",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1759104000.0,
+      "updated_at": 1759104000.0
+    },
+    {
+      "case_id": "CASE-SYN-0081",
+      "store_id": "C店",
+      "date": "2025-10-04",
+      "main_factor": "traffic",
+      "dimensions": [
+        "traffic",
+        "channels"
+      ],
+      "summary": "外卖平台排名下滑导致曝光减少,客流下降 25%,线上订单同步走弱。",
+      "actions": [
+        "优化外卖菜单与出餐时长",
+        "参与平台流量活动",
+        "提升评分与好评率"
+      ],
+      "tags": [
+        "外卖排名",
+        "曝光",
+        "客流"
+      ],
+      "symptoms": [
+        "客流同比下降 25%",
+        "外卖曝光与订单下滑"
+      ],
+      "metrics_snapshot": {
+        "traffic.pct_change": -25,
+        "revenue.pct_change": -16.2,
+        "sample_days": 7
+      },
+      "outcome": "优化菜单后排位回升",
+      "effective_from": "2025-10-04",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1759536000.0,
+      "updated_at": 1759536000.0
+    },
+    {
+      "case_id": "CASE-SYN-0082",
+      "store_id": "D店",
+      "date": "2025-10-09",
+      "main_factor": "traffic",
+      "dimensions": [
+        "traffic",
+        "channels"
+      ],
+      "summary": "外卖平台排名下滑导致曝光减少,客流下降 12%,线上订单同步走弱。",
+      "actions": [
+        "优化外卖菜单与出餐时长",
+        "参与平台流量活动",
+        "提升评分与好评率"
+      ],
+      "tags": [
+        "外卖排名",
+        "曝光",
+        "客流"
+      ],
+      "symptoms": [
+        "客流同比下降 12%",
+        "外卖曝光与订单下滑"
+      ],
+      "metrics_snapshot": {
+        "traffic.pct_change": -12,
+        "revenue.pct_change": -7.8,
+        "sample_days": 7
+      },
+      "outcome": "优化菜单后排位回升",
+      "effective_from": "2025-10-09",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1759968000.0,
+      "updated_at": 1759968000.0
+    },
+    {
+      "case_id": "CASE-SYN-0083",
+      "store_id": "E店",
+      "date": "2025-10-14",
+      "main_factor": "traffic",
+      "dimensions": [
+        "traffic",
+        "channels"
+      ],
+      "summary": "外卖平台排名下滑导致曝光减少,客流下降 14%,线上订单同步走弱。",
+      "actions": [
+        "优化外卖菜单与出餐时长",
+        "参与平台流量活动",
+        "提升评分与好评率"
+      ],
+      "tags": [
+        "外卖排名",
+        "曝光",
+        "客流"
+      ],
+      "symptoms": [
+        "客流同比下降 14%",
+        "外卖曝光与订单下滑"
+      ],
+      "metrics_snapshot": {
+        "traffic.pct_change": -14,
+        "revenue.pct_change": -9.1,
+        "sample_days": 7
+      },
+      "outcome": "优化菜单后排位回升",
+      "effective_from": "2025-10-14",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1760400000.0,
+      "updated_at": 1760400000.0
+    },
+    {
+      "case_id": "CASE-SYN-0084",
+      "store_id": "F店",
+      "date": "2025-10-19",
+      "main_factor": "traffic",
+      "dimensions": [
+        "traffic",
+        "channels"
+      ],
+      "summary": "外卖平台排名下滑导致曝光减少,客流下降 16%,线上订单同步走弱。",
+      "actions": [
+        "优化外卖菜单与出餐时长",
+        "参与平台流量活动",
+        "提升评分与好评率"
+      ],
+      "tags": [
+        "外卖排名",
+        "曝光",
+        "客流"
+      ],
+      "symptoms": [
+        "客流同比下降 16%",
+        "外卖曝光与订单下滑"
+      ],
+      "metrics_snapshot": {
+        "traffic.pct_change": -16,
+        "revenue.pct_change": -10.4,
+        "sample_days": 7
+      },
+      "outcome": "优化菜单后排位回升",
+      "effective_from": "2025-10-19",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1760832000.0,
+      "updated_at": 1760832000.0
+    },
+    {
+      "case_id": "CASE-SYN-0085",
+      "store_id": "A店",
+      "date": "2025-10-11",
+      "main_factor": "traffic",
+      "dimensions": [
+        "traffic",
+        "periods"
+      ],
+      "summary": "写字楼午市客流减少 24%,时段营收集中度下降。",
+      "actions": [
+        "午市推写字楼团餐",
+        "调整午市排班与出餐动线",
+        "在非高峰时段做引流"
+      ],
+      "tags": [
+        "午市",
+        "时段",
+        "写字楼"
+      ],
+      "symptoms": [
+        "客流同比下降 24%",
+        "午市客流集中下降"
+      ],
+      "metrics_snapshot": {
+        "traffic.pct_change": -24,
+        "revenue.pct_change": -15.6,
+        "sample_days": 7
+      },
+      "outcome": "团餐补充后午市改善",
+      "effective_from": "2025-10-11",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1760140800.0,
+      "updated_at": 1760140800.0
+    },
+    {
+      "case_id": "CASE-SYN-0086",
+      "store_id": "B店",
+      "date": "2025-10-16",
+      "main_factor": "traffic",
+      "dimensions": [
+        "traffic",
+        "periods"
+      ],
+      "summary": "写字楼午市客流减少 26%,时段营收集中度下降。",
+      "actions": [
+        "午市推写字楼团餐",
+        "调整午市排班与出餐动线",
+        "在非高峰时段做引流"
+      ],
+      "tags": [
+        "午市",
+        "时段",
+        "写字楼"
+      ],
+      "symptoms": [
+        "客流同比下降 26%",
+        "午市客流集中下降"
+      ],
+      "metrics_snapshot": {
+        "traffic.pct_change": -26,
+        "revenue.pct_change": -16.9,
+        "sample_days": 7
+      },
+      "outcome": "团餐补充后午市改善",
+      "effective_from": "2025-10-16",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1760572800.0,
+      "updated_at": 1760572800.0
+    },
+    {
+      "case_id": "CASE-SYN-0087",
+      "store_id": "C店",
+      "date": "2025-10-21",
+      "main_factor": "traffic",
+      "dimensions": [
+        "traffic",
+        "periods"
+      ],
+      "summary": "写字楼午市客流减少 13%,时段营收集中度下降。",
+      "actions": [
+        "午市推写字楼团餐",
+        "调整午市排班与出餐动线",
+        "在非高峰时段做引流"
+      ],
+      "tags": [
+        "午市",
+        "时段",
+        "写字楼"
+      ],
+      "symptoms": [
+        "客流同比下降 13%",
+        "午市客流集中下降"
+      ],
+      "metrics_snapshot": {
+        "traffic.pct_change": -13,
+        "revenue.pct_change": -8.5,
+        "sample_days": 7
+      },
+      "outcome": "团餐补充后午市改善",
+      "effective_from": "2025-10-21",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1761004800.0,
+      "updated_at": 1761004800.0
+    },
+    {
+      "case_id": "CASE-SYN-0088",
+      "store_id": "D店",
+      "date": "2025-10-26",
+      "main_factor": "traffic",
+      "dimensions": [
+        "traffic",
+        "periods"
+      ],
+      "summary": "写字楼午市客流减少 15%,时段营收集中度下降。",
+      "actions": [
+        "午市推写字楼团餐",
+        "调整午市排班与出餐动线",
+        "在非高峰时段做引流"
+      ],
+      "tags": [
+        "午市",
+        "时段",
+        "写字楼"
+      ],
+      "symptoms": [
+        "客流同比下降 15%",
+        "午市客流集中下降"
+      ],
+      "metrics_snapshot": {
+        "traffic.pct_change": -15,
+        "revenue.pct_change": -9.8,
+        "sample_days": 7
+      },
+      "outcome": "团餐补充后午市改善",
+      "effective_from": "2025-10-26",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1761436800.0,
+      "updated_at": 1761436800.0
+    },
+    {
+      "case_id": "CASE-SYN-0089",
+      "store_id": "E店",
+      "date": "2025-10-31",
+      "main_factor": "traffic",
+      "dimensions": [
+        "traffic",
+        "periods"
+      ],
+      "summary": "写字楼午市客流减少 17%,时段营收集中度下降。",
+      "actions": [
+        "午市推写字楼团餐",
+        "调整午市排班与出餐动线",
+        "在非高峰时段做引流"
+      ],
+      "tags": [
+        "午市",
+        "时段",
+        "写字楼"
+      ],
+      "symptoms": [
+        "客流同比下降 17%",
+        "午市客流集中下降"
+      ],
+      "metrics_snapshot": {
+        "traffic.pct_change": -17,
+        "revenue.pct_change": -11.1,
+        "sample_days": 7
+      },
+      "outcome": "团餐补充后午市改善",
+      "effective_from": "2025-10-31",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1761868800.0,
+      "updated_at": 1761868800.0
+    },
+    {
+      "case_id": "CASE-SYN-0090",
+      "store_id": "F店",
+      "date": "2025-11-05",
+      "main_factor": "traffic",
+      "dimensions": [
+        "traffic",
+        "periods"
+      ],
+      "summary": "写字楼午市客流减少 19%,时段营收集中度下降。",
+      "actions": [
+        "午市推写字楼团餐",
+        "调整午市排班与出餐动线",
+        "在非高峰时段做引流"
+      ],
+      "tags": [
+        "午市",
+        "时段",
+        "写字楼"
+      ],
+      "symptoms": [
+        "客流同比下降 19%",
+        "午市客流集中下降"
+      ],
+      "metrics_snapshot": {
+        "traffic.pct_change": -19,
+        "revenue.pct_change": -12.3,
+        "sample_days": 7
+      },
+      "outcome": "团餐补充后午市改善",
+      "effective_from": "2025-11-05",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1762300800.0,
+      "updated_at": 1762300800.0
+    },
+    {
+      "case_id": "CASE-SYN-0091",
+      "store_id": "A店",
+      "date": "2025-10-28",
+      "main_factor": "none",
+      "dimensions": [
+        "rating",
+        "staff"
+      ],
+      "summary": "集中差评指向出餐速度与服务态度,评分下降 0.3,营收暂未明显波动。",
+      "actions": [
+        "高峰增派人手并优化出餐流程",
+        "针对差评逐条回访",
+        "开展服务话术培训"
+      ],
+      "tags": [
+        "差评",
+        "服务",
+        "出餐"
+      ],
+      "symptoms": [
+        "评分下降 0.3",
+        "差评指向服务体验"
+      ],
+      "metrics_snapshot": {
+        "rating.delta": -0.3,
+        "complaints": 8,
+        "review_count": 65
+      },
+      "outcome": "培训后评分回升",
+      "effective_from": "2025-10-28",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1761609600.0,
+      "updated_at": 1761609600.0
+    },
+    {
+      "case_id": "CASE-SYN-0092",
+      "store_id": "B店",
+      "date": "2025-11-02",
+      "main_factor": "none",
+      "dimensions": [
+        "rating",
+        "staff"
+      ],
+      "summary": "集中差评指向出餐速度与服务态度,评分下降 0.4,营收暂未明显波动。",
+      "actions": [
+        "高峰增派人手并优化出餐流程",
+        "针对差评逐条回访",
+        "开展服务话术培训"
+      ],
+      "tags": [
+        "差评",
+        "服务",
+        "出餐"
+      ],
+      "symptoms": [
+        "评分下降 0.4",
+        "差评指向服务体验"
+      ],
+      "metrics_snapshot": {
+        "rating.delta": -0.4,
+        "complaints": 9,
+        "review_count": 67
+      },
+      "outcome": "培训后评分回升",
+      "effective_from": "2025-11-02",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1762041600.0,
+      "updated_at": 1762041600.0
+    },
+    {
+      "case_id": "CASE-SYN-0093",
+      "store_id": "C店",
+      "date": "2025-11-07",
+      "main_factor": "none",
+      "dimensions": [
+        "rating",
+        "staff"
+      ],
+      "summary": "集中差评指向出餐速度与服务态度,评分下降 0.5,营收暂未明显波动。",
+      "actions": [
+        "高峰增派人手并优化出餐流程",
+        "针对差评逐条回访",
+        "开展服务话术培训"
+      ],
+      "tags": [
+        "差评",
+        "服务",
+        "出餐"
+      ],
+      "symptoms": [
+        "评分下降 0.5",
+        "差评指向服务体验"
+      ],
+      "metrics_snapshot": {
+        "rating.delta": -0.5,
+        "complaints": 10,
+        "review_count": 69
+      },
+      "outcome": "培训后评分回升",
+      "effective_from": "2025-11-07",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1762473600.0,
+      "updated_at": 1762473600.0
+    },
+    {
+      "case_id": "CASE-SYN-0094",
+      "store_id": "D店",
+      "date": "2025-11-12",
+      "main_factor": "none",
+      "dimensions": [
+        "rating",
+        "staff"
+      ],
+      "summary": "集中差评指向出餐速度与服务态度,评分下降 0.6,营收暂未明显波动。",
+      "actions": [
+        "高峰增派人手并优化出餐流程",
+        "针对差评逐条回访",
+        "开展服务话术培训"
+      ],
+      "tags": [
+        "差评",
+        "服务",
+        "出餐"
+      ],
+      "symptoms": [
+        "评分下降 0.6",
+        "差评指向服务体验"
+      ],
+      "metrics_snapshot": {
+        "rating.delta": -0.6,
+        "complaints": 11,
+        "review_count": 21
+      },
+      "outcome": "培训后评分回升",
+      "effective_from": "2025-11-12",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1762905600.0,
+      "updated_at": 1762905600.0
+    },
+    {
+      "case_id": "CASE-SYN-0095",
+      "store_id": "E店",
+      "date": "2025-11-17",
+      "main_factor": "none",
+      "dimensions": [
+        "rating",
+        "staff"
+      ],
+      "summary": "集中差评指向出餐速度与服务态度,评分下降 0.7,营收暂未明显波动。",
+      "actions": [
+        "高峰增派人手并优化出餐流程",
+        "针对差评逐条回访",
+        "开展服务话术培训"
+      ],
+      "tags": [
+        "差评",
+        "服务",
+        "出餐"
+      ],
+      "symptoms": [
+        "评分下降 0.7",
+        "差评指向服务体验"
+      ],
+      "metrics_snapshot": {
+        "rating.delta": -0.7,
+        "complaints": 12,
+        "review_count": 23
+      },
+      "outcome": "培训后评分回升",
+      "effective_from": "2025-11-17",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1763337600.0,
+      "updated_at": 1763337600.0
+    },
+    {
+      "case_id": "CASE-SYN-0096",
+      "store_id": "F店",
+      "date": "2025-11-22",
+      "main_factor": "none",
+      "dimensions": [
+        "rating",
+        "staff"
+      ],
+      "summary": "集中差评指向出餐速度与服务态度,评分下降 0.3,营收暂未明显波动。",
+      "actions": [
+        "高峰增派人手并优化出餐流程",
+        "针对差评逐条回访",
+        "开展服务话术培训"
+      ],
+      "tags": [
+        "差评",
+        "服务",
+        "出餐"
+      ],
+      "symptoms": [
+        "评分下降 0.3",
+        "差评指向服务体验"
+      ],
+      "metrics_snapshot": {
+        "rating.delta": -0.3,
+        "complaints": 3,
+        "review_count": 25
+      },
+      "outcome": "培训后评分回升",
+      "effective_from": "2025-11-22",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1763769600.0,
+      "updated_at": 1763769600.0
+    },
+    {
+      "case_id": "CASE-SYN-0097",
+      "store_id": "A店",
+      "date": "2025-11-14",
+      "main_factor": "none",
+      "dimensions": [
+        "staff",
+        "periods"
+      ],
+      "summary": "高峰时段排班缺口导致出餐慢,出勤率 78%,顾客体验下降。",
+      "actions": [
+        "补齐高峰班次",
+        "设置跨店支援机制",
+        "用小时工覆盖缺口"
+      ],
+      "tags": [
+        "排班缺口",
+        "高峰人力",
+        "出餐"
+      ],
+      "symptoms": [
+        "出勤率 78%",
+        "高峰人力不足"
+      ],
+      "metrics_snapshot": {
+        "attendance_ratio": 0.78,
+        "staff_shortage_hours": 6
+      },
+      "outcome": "补齐排班后出餐改善",
+      "effective_from": "2025-11-14",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1763078400.0,
+      "updated_at": 1763078400.0
+    },
+    {
+      "case_id": "CASE-SYN-0098",
+      "store_id": "B店",
+      "date": "2025-11-19",
+      "main_factor": "none",
+      "dimensions": [
+        "staff",
+        "periods"
+      ],
+      "summary": "高峰时段排班缺口导致出餐慢,出勤率 80%,顾客体验下降。",
+      "actions": [
+        "补齐高峰班次",
+        "设置跨店支援机制",
+        "用小时工覆盖缺口"
+      ],
+      "tags": [
+        "排班缺口",
+        "高峰人力",
+        "出餐"
+      ],
+      "symptoms": [
+        "出勤率 80%",
+        "高峰人力不足"
+      ],
+      "metrics_snapshot": {
+        "attendance_ratio": 0.8,
+        "staff_shortage_hours": 7
+      },
+      "outcome": "补齐排班后出餐改善",
+      "effective_from": "2025-11-19",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1763510400.0,
+      "updated_at": 1763510400.0
+    },
+    {
+      "case_id": "CASE-SYN-0099",
+      "store_id": "C店",
+      "date": "2025-11-24",
+      "main_factor": "none",
+      "dimensions": [
+        "staff",
+        "periods"
+      ],
+      "summary": "高峰时段排班缺口导致出餐慢,出勤率 82%,顾客体验下降。",
+      "actions": [
+        "补齐高峰班次",
+        "设置跨店支援机制",
+        "用小时工覆盖缺口"
+      ],
+      "tags": [
+        "排班缺口",
+        "高峰人力",
+        "出餐"
+      ],
+      "symptoms": [
+        "出勤率 82%",
+        "高峰人力不足"
+      ],
+      "metrics_snapshot": {
+        "attendance_ratio": 0.82,
+        "staff_shortage_hours": 2
+      },
+      "outcome": "补齐排班后出餐改善",
+      "effective_from": "2025-11-24",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1763942400.0,
+      "updated_at": 1763942400.0
+    },
+    {
+      "case_id": "CASE-SYN-0100",
+      "store_id": "D店",
+      "date": "2025-11-29",
+      "main_factor": "none",
+      "dimensions": [
+        "staff",
+        "periods"
+      ],
+      "summary": "高峰时段排班缺口导致出餐慢,出勤率 84%,顾客体验下降。",
+      "actions": [
+        "补齐高峰班次",
+        "设置跨店支援机制",
+        "用小时工覆盖缺口"
+      ],
+      "tags": [
+        "排班缺口",
+        "高峰人力",
+        "出餐"
+      ],
+      "symptoms": [
+        "出勤率 84%",
+        "高峰人力不足"
+      ],
+      "metrics_snapshot": {
+        "attendance_ratio": 0.84,
+        "staff_shortage_hours": 3
+      },
+      "outcome": "补齐排班后出餐改善",
+      "effective_from": "2025-11-29",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1764374400.0,
+      "updated_at": 1764374400.0
+    },
+    {
+      "case_id": "CASE-SYN-0101",
+      "store_id": "E店",
+      "date": "2025-12-04",
+      "main_factor": "none",
+      "dimensions": [
+        "staff",
+        "periods"
+      ],
+      "summary": "高峰时段排班缺口导致出餐慢,出勤率 86%,顾客体验下降。",
+      "actions": [
+        "补齐高峰班次",
+        "设置跨店支援机制",
+        "用小时工覆盖缺口"
+      ],
+      "tags": [
+        "排班缺口",
+        "高峰人力",
+        "出餐"
+      ],
+      "symptoms": [
+        "出勤率 86%",
+        "高峰人力不足"
+      ],
+      "metrics_snapshot": {
+        "attendance_ratio": 0.86,
+        "staff_shortage_hours": 4
+      },
+      "outcome": "补齐排班后出餐改善",
+      "effective_from": "2025-12-04",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1764806400.0,
+      "updated_at": 1764806400.0
+    },
+    {
+      "case_id": "CASE-SYN-0102",
+      "store_id": "F店",
+      "date": "2025-12-09",
+      "main_factor": "none",
+      "dimensions": [
+        "staff",
+        "periods"
+      ],
+      "summary": "高峰时段排班缺口导致出餐慢,出勤率 88%,顾客体验下降。",
+      "actions": [
+        "补齐高峰班次",
+        "设置跨店支援机制",
+        "用小时工覆盖缺口"
+      ],
+      "tags": [
+        "排班缺口",
+        "高峰人力",
+        "出餐"
+      ],
+      "symptoms": [
+        "出勤率 88%",
+        "高峰人力不足"
+      ],
+      "metrics_snapshot": {
+        "attendance_ratio": 0.88,
+        "staff_shortage_hours": 5
+      },
+      "outcome": "补齐排班后出餐改善",
+      "effective_from": "2025-12-09",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1765238400.0,
+      "updated_at": 1765238400.0
+    },
+    {
+      "case_id": "CASE-SYN-0103",
+      "store_id": "A店",
+      "date": "2025-12-01",
+      "main_factor": "none",
+      "dimensions": [
+        "rating",
+        "channels"
+      ],
+      "summary": "退款与投诉量上升,口碑指标走弱,退款 14 起,营收暂未明显波动。",
+      "actions": [
+        "建立退款原因分类",
+        "24 小时内处理投诉",
+        "复盘高频问题并整改"
+      ],
+      "tags": [
+        "退款",
+        "投诉",
+        "口碑"
+      ],
+      "symptoms": [
+        "退款/投诉 14 起",
+        "退款与投诉集中"
+      ],
+      "metrics_snapshot": {
+        "complaints": 14,
+        "refund_count": 7
+      },
+      "outcome": "投诉处理机制上线后下降",
+      "effective_from": "2025-12-01",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1764547200.0,
+      "updated_at": 1764547200.0
+    },
+    {
+      "case_id": "CASE-SYN-0104",
+      "store_id": "B店",
+      "date": "2025-12-06",
+      "main_factor": "none",
+      "dimensions": [
+        "rating",
+        "channels"
+      ],
+      "summary": "退款与投诉量上升,口碑指标走弱,退款 15 起,营收暂未明显波动。",
+      "actions": [
+        "建立退款原因分类",
+        "24 小时内处理投诉",
+        "复盘高频问题并整改"
+      ],
+      "tags": [
+        "退款",
+        "投诉",
+        "口碑"
+      ],
+      "symptoms": [
+        "退款/投诉 15 起",
+        "退款与投诉集中"
+      ],
+      "metrics_snapshot": {
+        "complaints": 15,
+        "refund_count": 7
+      },
+      "outcome": "投诉处理机制上线后下降",
+      "effective_from": "2025-12-06",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1764979200.0,
+      "updated_at": 1764979200.0
+    },
+    {
+      "case_id": "CASE-SYN-0105",
+      "store_id": "C店",
+      "date": "2025-12-11",
+      "main_factor": "none",
+      "dimensions": [
+        "rating",
+        "channels"
+      ],
+      "summary": "退款与投诉量上升,口碑指标走弱,退款 4 起,营收暂未明显波动。",
+      "actions": [
+        "建立退款原因分类",
+        "24 小时内处理投诉",
+        "复盘高频问题并整改"
+      ],
+      "tags": [
+        "退款",
+        "投诉",
+        "口碑"
+      ],
+      "symptoms": [
+        "退款/投诉 4 起",
+        "退款与投诉集中"
+      ],
+      "metrics_snapshot": {
+        "complaints": 4,
+        "refund_count": 2
+      },
+      "outcome": "投诉处理机制上线后下降",
+      "effective_from": "2025-12-11",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1765411200.0,
+      "updated_at": 1765411200.0
+    },
+    {
+      "case_id": "CASE-SYN-0106",
+      "store_id": "D店",
+      "date": "2025-12-16",
+      "main_factor": "none",
+      "dimensions": [
+        "rating",
+        "channels"
+      ],
+      "summary": "退款与投诉量上升,口碑指标走弱,退款 5 起,营收暂未明显波动。",
+      "actions": [
+        "建立退款原因分类",
+        "24 小时内处理投诉",
+        "复盘高频问题并整改"
+      ],
+      "tags": [
+        "退款",
+        "投诉",
+        "口碑"
+      ],
+      "symptoms": [
+        "退款/投诉 5 起",
+        "退款与投诉集中"
+      ],
+      "metrics_snapshot": {
+        "complaints": 5,
+        "refund_count": 2
+      },
+      "outcome": "投诉处理机制上线后下降",
+      "effective_from": "2025-12-16",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1765843200.0,
+      "updated_at": 1765843200.0
+    },
+    {
+      "case_id": "CASE-SYN-0107",
+      "store_id": "E店",
+      "date": "2025-12-21",
+      "main_factor": "none",
+      "dimensions": [
+        "rating",
+        "channels"
+      ],
+      "summary": "退款与投诉量上升,口碑指标走弱,退款 6 起,营收暂未明显波动。",
+      "actions": [
+        "建立退款原因分类",
+        "24 小时内处理投诉",
+        "复盘高频问题并整改"
+      ],
+      "tags": [
+        "退款",
+        "投诉",
+        "口碑"
+      ],
+      "symptoms": [
+        "退款/投诉 6 起",
+        "退款与投诉集中"
+      ],
+      "metrics_snapshot": {
+        "complaints": 6,
+        "refund_count": 3
+      },
+      "outcome": "投诉处理机制上线后下降",
+      "effective_from": "2025-12-21",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1766275200.0,
+      "updated_at": 1766275200.0
+    },
+    {
+      "case_id": "CASE-SYN-0108",
+      "store_id": "F店",
+      "date": "2025-12-26",
+      "main_factor": "none",
+      "dimensions": [
+        "rating",
+        "channels"
+      ],
+      "summary": "退款与投诉量上升,口碑指标走弱,退款 7 起,营收暂未明显波动。",
+      "actions": [
+        "建立退款原因分类",
+        "24 小时内处理投诉",
+        "复盘高频问题并整改"
+      ],
+      "tags": [
+        "退款",
+        "投诉",
+        "口碑"
+      ],
+      "symptoms": [
+        "退款/投诉 7 起",
+        "退款与投诉集中"
+      ],
+      "metrics_snapshot": {
+        "complaints": 7,
+        "refund_count": 3
+      },
+      "outcome": "投诉处理机制上线后下降",
+      "effective_from": "2025-12-26",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.55,
+      "source": "synthetic:corpus",
+      "version": 1,
+      "created_at": 1766707200.0,
+      "updated_at": 1766707200.0
+    },
+    {
+      "case_id": "CASE-SYN-FUTURE-1",
+      "store_id": "C店",
+      "date": "2026-12-01",
+      "main_factor": "traffic",
+      "dimensions": [
+        "traffic",
+        "external"
+      ],
+      "summary": "台风预警触发临时闭店,当日无营业数据,未形成可复用结论。",
+      "actions": [
+        "仅在日期过滤测试中使用"
+      ],
+      "tags": [
+        "台风预警",
+        "临时闭店"
+      ],
+      "symptoms": [
+        "临时闭店",
+        "无营业数据"
+      ],
+      "metrics_snapshot": {},
+      "outcome": "未验证",
+      "effective_from": "2026-12-01",
+      "effective_to": "",
+      "deprecated": false,
+      "confidence": 0.2,
+      "source": "synthetic:corpus:filter",
+      "version": 1,
+      "created_at": 1796083200.0,
+      "updated_at": 1796083200.0
+    },
+    {
+      "case_id": "CASE-SYN-DEPRECATED-1",
+      "store_id": "C店",
+      "date": "2026-08-15",
+      "main_factor": "traffic",
+      "dimensions": [
+        "periods",
+        "channels"
+      ],
+      "summary": "POS 系统宕机导致收银中断,数据补录后口径失真,案例已废弃。",
+      "actions": [
+        "更换收银终端",
+        "补录期间订单"
+      ],
+      "tags": [
+        "POS宕机",
+        "收银中断"
+      ],
+      "symptoms": [
+        "收银中断",
+        "数据失真"
+      ],
+      "metrics_snapshot": {
+        "downtime_minutes": 95
+      },
+      "outcome": "案例已废弃,不再作为处置参考",
+      "effective_from": "2026-08-15",
+      "effective_to": "",
+      "deprecated": true,
+      "confidence": 0.2,
+      "source": "synthetic:corpus:filter",
+      "version": 1,
+      "created_at": 1786752000.0,
+      "updated_at": 1786752000.0
+    },
+    {
+      "case_id": "CASE-SYN-EXPIRED-1",
+      "store_id": "C店",
+      "date": "2025-01-10",
+      "main_factor": "ticket",
+      "dimensions": [
+        "ticket",
+        "dish"
+      ],
+      "summary": "旧版菜单价格调整导致客单下滑,适用期已结束。",
+      "actions": [
+        "恢复旧价",
+        "观察两周"
+      ],
+      "tags": [
+        "旧版菜单",
+        "价格调整"
+      ],
+      "symptoms": [
+        "客单下滑"
+      ],
+      "metrics_snapshot": {
+        "ticket.pct_change": -9.0
+      },
+      "outcome": "旧版菜单已下线",
+      "effective_from": "2025-01-10",
+      "effective_to": "2025-06-30",
+      "deprecated": false,
+      "confidence": 0.4,
+      "source": "synthetic:corpus:filter",
+      "version": 1,
+      "created_at": 1736467200.0,
+      "updated_at": 1736467200.0
+    },
+    {
+      "case_id": "CASE-SYN-EXPIRED-2",
+      "store_id": "D店",
+      "date": "2025-02-10",
+      "main_factor": "none",
+      "dimensions": [
+        "staff",
+        "periods"
+      ],
+      "summary": "旧版排班规则导致高峰出餐慢,已停用。",
+      "actions": [
+        "启用新排班模板"
+      ],
+      "tags": [
+        "旧版排班",
+        "高峰班次"
+      ],
+      "symptoms": [
+        "出餐慢"
+      ],
+      "metrics_snapshot": {
+        "attendance_ratio": 0.85
+      },
+      "outcome": "新排班模板已替换",
+      "effective_from": "2025-02-10",
+      "effective_to": "2025-12-31",
+      "deprecated": false,
+      "confidence": 0.4,
+      "source": "synthetic:corpus:filter",
+      "version": 1,
+      "created_at": 1739145600.0,
+      "updated_at": 1739145600.0
+    }
+  ]
+}

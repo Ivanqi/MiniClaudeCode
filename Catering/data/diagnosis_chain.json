@@ -147,7 +147,8 @@
       "title": "历史类似案例检索",
       "dimension": "case",
       "tool": "search_cases",
-      "args": {"store_id": "{{store_id}}", "symptom": "{{symptom}}"},
+      "args": {"store_id": "{{store_id}}", "date": "{{date}}",
+               "main_factor": "{{main_factor}}", "symptom": "{{symptom}}"},
       "when": "any_anomaly",
       "rules": [
         {"metric": "match_count", "op": "ge", "threshold": 1,

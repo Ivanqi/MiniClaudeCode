@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "description": "案例检索标注集:query + 结构化条件 -> 期望 case_id;空期望表示不应召回。用于离线计算 recall@k / MRR / 无匹配准确率。",
+  "pairs": [
+    {"id": "R01", "query": "暴雨 客流下降", "store_id": "A店", "date": "2026-09-01", "main_factor": "traffic", "top_k": 3, "expected_case_ids": ["CASE-2026-0622-A"]},
+    {"id": "R02", "query": "dimension:traffic 堂食客流流失", "store_id": "A店", "date": "2026-09-01", "main_factor": "traffic", "top_k": 3, "expected_case_ids": ["CASE-2026-0622-A"]},
+    {"id": "R03", "query": "暴雨天气导致客流下降", "store_id": "A店", "date": "2026-09-01", "main_factor": "traffic", "top_k": 3, "expected_case_ids": ["CASE-2026-0622-A"]},
+    {"id": "R04", "query": "外卖小幅上升 雨天", "store_id": "A店", "date": "2026-09-01", "main_factor": "traffic", "top_k": 3, "expected_case_ids": ["CASE-2026-0622-A"]},
+    {"id": "R05", "query": "会员 雨天到店券", "store_id": "A店", "date": "2026-09-01", "main_factor": "traffic", "top_k": 3, "expected_case_ids": ["CASE-2026-0622-A"]},
+    {"id": "R06", "query": "堂食 客流 天气转好 次日恢复", "store_id": "A店", "date": "2026-09-01", "main_factor": "traffic", "top_k": 3, "expected_case_ids": ["CASE-2026-0622-A"]},
+    {"id": "R07", "query": "暴雨时段 外卖投放预算", "store_id": "A店", "date": "2026-09-01", "main_factor": "traffic", "top_k": 3, "expected_case_ids": ["CASE-2026-0622-A"]},
+    {"id": "R08", "query": "天气 客流下降 22%", "store_id": "A店", "date": "2026-09-01", "main_factor": "traffic", "top_k": 3, "expected_case_ids": ["CASE-2026-0622-A"]},
+    {"id": "R09", "query": "雨天专属套餐 热饮", "store_id": "A店", "date": "2026-09-01", "main_factor": "traffic", "top_k": 3, "expected_case_ids": ["CASE-2026-0622-A"]},
+    {"id": "R10", "query": "dimension:external 暴雨", "store_id": "A店", "date": "2026-09-01", "main_factor": "traffic", "top_k": 3, "expected_case_ids": ["CASE-2026-0622-A"]},
+    {"id": "R11", "query": "低价套餐 客单价下降", "store_id": "B店", "date": "2026-09-01", "main_factor": "ticket", "top_k": 3, "expected_case_ids": ["CASE-2026-0712-B"]},
+    {"id": "R12", "query": "低价引流套餐 毛利", "store_id": "B店", "date": "2026-09-01", "main_factor": "ticket", "top_k": 3, "expected_case_ids": ["CASE-2026-0712-B"]},
+    {"id": "R13", "query": "套餐销售时段 数量上限", "store_id": "B店", "date": "2026-09-01", "main_factor": "ticket", "top_k": 3, "expected_case_ids": ["CASE-2026-0712-B"]},
+    {"id": "R14", "query": "新客复购 转化 活动", "store_id": "B店", "date": "2026-09-01", "main_factor": "ticket", "top_k": 3, "expected_case_ids": ["CASE-2026-0712-B"]},
+    {"id": "R15", "query": "菜品结构 低价品类", "store_id": "B店", "date": "2026-09-01", "main_factor": "ticket", "top_k": 3, "expected_case_ids": ["CASE-2026-0712-B"]},
+    {"id": "R16", "query": "高毛利小食 连带率", "store_id": "B店", "date": "2026-09-01", "main_factor": "ticket", "top_k": 3, "expected_case_ids": ["CASE-2026-0712-B"]},
+    {"id": "R17", "query": "客单价下降 客流上升", "store_id": "B店", "date": "2026-09-01", "main_factor": "ticket", "top_k": 3, "expected_case_ids": ["CASE-2026-0712-B"]},
+    {"id": "R18", "query": "dimension:dish 低价套餐", "store_id": "B店", "date": "2026-09-01", "main_factor": "ticket", "top_k": 3, "expected_case_ids": ["CASE-2026-0712-B"]},
+    {"id": "R19", "query": "活动期后 跟踪复购", "store_id": "B店", "date": "2026-09-01", "main_factor": "ticket", "top_k": 3, "expected_case_ids": ["CASE-2026-0712-B"]},
+    {"id": "R20", "query": "dimension:promotion 低价套餐", "store_id": "B店", "date": "2026-09-01", "main_factor": "ticket", "top_k": 3, "expected_case_ids": ["CASE-2026-0712-B"]},
+    {"id": "R21", "query": "台风预警 临时闭店", "store_id": "C店", "date": "2026-09-01", "main_factor": "", "top_k": 3, "expected_case_ids": []},
+    {"id": "R22", "query": "POS宕机 收银中断", "store_id": "C店", "date": "2026-09-01", "main_factor": "", "top_k": 3, "expected_case_ids": []}
+  ]
+}

@@ -120,7 +120,8 @@ class DiagnosticEngine:
     def __init__(self, tools: CateringTools, run_dir: Path | None = None,
                  tasks=None):
         self.tools = tools
-        self.run_dir = run_dir or CateringConfigs.RUN_DIR
+        self.run_dir = (Path(run_dir) if run_dir is not None
+                        else CateringConfigs.RUN_DIR)
         self.tasks = tasks   # 可选的 src.TaskSystem(默认不镜像)
 
     '''
@@ -183,6 +184,12 @@ class DiagnosticEngine:
                     for k, v in step.get("args", {}).items()}
             # 真正查数据
             result = self.tools.execute(step["tool"], args)
+            # 案例检索单独落审计日志:候选、分数分解、过滤原因(不进报告的紧凑视图)
+            if step["tool"] == "search_cases":
+                retrieval_path = self._persist_retrieval(step["id"], args,
+                                                         result)
+                if retrieval_path:
+                    result = {**result, "retrieval_log": retrieval_path}
             '''
             ④ 证据落盘
                 把工具原始结果写到 run_dir/evidence/traffic.json。
@@ -233,6 +240,8 @@ class DiagnosticEngine:
             '''
             if step["id"] == "decompose":
                 culprit, _ = determine_main_factor(result)
+                # 供案例检索步骤绑定 {{main_factor}}(decompose 之后才可用)
+                bind["main_factor"] = culprit or "none"
 
             '''
             ⑧ 汇总该步骤的结论与状态
@@ -329,7 +338,9 @@ class DiagnosticEngine:
         if value == "{{symptom}}":
             return " ".join(symptom_parts) or "无异常发现"
         return value.replace("{{store_id}}", str(bind["store_id"])) \
-                    .replace("{{date}}", str(bind["date"]))
+                    .replace("{{date}}", str(bind["date"])) \
+                    .replace("{{main_factor}}",
+                             str(bind.get("main_factor") or "none"))
 
     @staticmethod
     def _metrics_snapshot(result: dict) -> dict:
@@ -346,6 +357,29 @@ class DiagnosticEngine:
             ev_dir.mkdir(parents=True, exist_ok=True)
             path = ev_dir / f"{step_id}.json"
             path.write_text(json.dumps(result, ensure_ascii=False, indent=2))
+            return str(path)
+        except OSError:
+            return None
+
+    def _persist_retrieval(self, step_id: str, params: dict,
+                           result: dict) -> str | None:
+        """案例检索审计日志:候选、分数分解、过滤原因;失败不阻断诊断。"""
+        payload = {
+            "step_id": step_id,
+            "tool": "search_cases",
+            "params": params,
+            "query": result.get("query") or result.get("symptom"),
+            "match_count": result.get("match_count"),
+            "filters": result.get("filters"),
+            "candidates": result.get("candidates") or [],
+            "missing_fields": result.get("missing_fields") or [],
+            "error": result.get("error"),
+        }
+        try:
+            retrieval_dir = self.run_dir / "retrieval"
+            retrieval_dir.mkdir(parents=True, exist_ok=True)
+            path = retrieval_dir / f"{step_id}.json"
+            path.write_text(json.dumps(payload, ensure_ascii=False, indent=2))
             return str(path)
         except OSError:
             return None
@@ -409,7 +443,8 @@ class DiagnosisStateMachine:
         return machine
 
     def persist(self, run_dir: Path | None = None) -> Path:
-        run_dir = run_dir or CateringConfigs.RUN_DIR
+        run_dir = (Path(run_dir) if run_dir is not None
+                   else CateringConfigs.RUN_DIR)
         run_dir.mkdir(parents=True, exist_ok=True)
         path = run_dir / f"{self.run_id}.json"
         path.write_text(json.dumps(self.to_dict(), ensure_ascii=False,

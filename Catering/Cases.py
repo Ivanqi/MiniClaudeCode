@@ -5,9 +5,11 @@
 SHA-256 指纹,以及 upsert=更新而非追加的语义。
 """
 import json
+import math
 import re
 import time
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 
 from src.Configs import Configs
@@ -19,8 +21,10 @@ from src.Terminal import Terminal
 from Catering.Configs import CateringConfigs
 
 CASE_FIELDS = ("case_id", "store_id", "date", "main_factor", "dimensions",
-               "summary", "actions", "tags")
+               "summary", "actions", "tags", "symptoms", "metrics_snapshot",
+               "outcome", "effective_from", "effective_to", "deprecated")
 _CASE_ID_RE = re.compile(r"^[^\x00-\x1f/\\]{1,200}$")
+_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
 def validate_case_id(case_id: str) -> str:
@@ -31,6 +35,50 @@ def validate_case_id(case_id: str) -> str:
             or not _CASE_ID_RE.match(value)):
         raise ValueError(f"invalid case_id: {case_id!r}")
     return value
+
+
+def _normalized_date(value) -> str:
+    """只接受 ISO 日期;非法值置空,避免时间过滤按字符串误比较。"""
+    text = normalize_text(redact(str(value or "")))
+    return text if _DATE_RE.match(text) else ""
+
+
+def _normalized_list(value) -> list[str]:
+    """症状等字符串列表:去空、去重、稳定排序。"""
+    if isinstance(value, str):
+        value = [value]
+    return sorted({normalize_text(redact(str(item)))
+                   for item in (value or []) if str(item).strip()},
+                  key=str.casefold)
+
+
+def _normalized_metrics(value) -> dict:
+    """指标快照只保留标量(数值/布尔/短文本),避免嵌套结构进入 digest/hash。"""
+    if not isinstance(value, dict):
+        return {}
+    snapshot = {}
+    for key, item in value.items():
+        name = normalize_text(redact(str(key)))[:100]
+        if not name:
+            continue
+        if isinstance(item, bool):
+            snapshot[name] = item
+        elif isinstance(item, (int, float)):
+            if not isinstance(item, float) or math.isfinite(item):
+                snapshot[name] = item
+        elif isinstance(item, str):
+            snapshot[name] = redact(item)[:200]
+    return dict(sorted(snapshot.items(), key=lambda pair: pair[0].casefold()))
+
+
+def _bool_or(value, default: bool = False) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() in ("1", "true", "yes", "y")
+    if value is None:
+        return default
+    return bool(value)
 
 
 def _canonical_case(case: dict) -> dict:
@@ -46,13 +94,20 @@ def _canonical_case(case: dict) -> dict:
                    if str(item).strip()}, key=str.casefold)
     return {
         "store_id": normalize_text(redact(str(case.get("store_id") or ""))),
-        "date": normalize_text(redact(str(case.get("date") or ""))),
+        "date": _normalized_date(case.get("date")),
         "main_factor": normalize_text(
             redact(str(case.get("main_factor") or ""))),
         "dimensions": dimensions,
         "summary": normalize_text(redact(str(case.get("summary") or ""))),
         "actions": actions,
         "tags": tags,
+        "symptoms": _normalized_list(case.get("symptoms")),
+        "metrics_snapshot": _normalized_metrics(
+            case.get("metrics_snapshot")),
+        "outcome": normalize_text(redact(str(case.get("outcome") or ""))),
+        "effective_from": _normalized_date(case.get("effective_from")),
+        "effective_to": _normalized_date(case.get("effective_to")),
+        "deprecated": _bool_or(case.get("deprecated"), False),
     }
 
 
@@ -69,7 +124,8 @@ def _float_or(value, default=None):
         return default
 
 
-def _case_from_raw(raw: dict, path: Path, now: float) -> dict | None:
+def _case_from_raw(raw: dict, path: Path, now: float,
+                   stat_mtime: float | None = None) -> dict | None:
     if not isinstance(raw, dict):
         return None
     # 兼容将来可能出现的 MemoryItem 包装
@@ -89,11 +145,11 @@ def _case_from_raw(raw: dict, path: Path, now: float) -> dict | None:
     except ValueError:
         return None
     case = _canonical_case(raw)
-    stat_mtime = None
-    try:
-        stat_mtime = path.stat().st_mtime
-    except OSError:
-        pass
+    if stat_mtime is None:
+        try:
+            stat_mtime = path.stat().st_mtime
+        except OSError:
+            pass
     created_at = _float_or(raw.get("created_at"), stat_mtime or now)
     updated_at = _float_or(raw.get("updated_at"), created_at)
     confidence = _float_or(raw.get("confidence"), 0.5)
@@ -145,8 +201,12 @@ def load_cases(*roots: Path | str | None) -> list[dict]:
                 raws = [payload]
             else:
                 continue
+            try:
+                stat_mtime = path.stat().st_mtime
+            except OSError:
+                stat_mtime = None
             for raw in raws:
-                record = _case_from_raw(raw, path, now)
+                record = _case_from_raw(raw, path, now, stat_mtime)
                 if record is None:
                     continue
                 old = records.get(record["case_id"])
@@ -259,16 +319,20 @@ CASE_STORE = CaseStore()
 
 
 def case_search_decay(case: dict, now: float | None = None) -> float:
-    """案例时间衰减:按 date 或 updated_at,保留一个地板。"""
+    """案例时间衰减:优先 effective_from/date,无日期时用 updated_at,保留地板。"""
     now = time.time() if now is None else now
-    stamp = _float_or(case.get("updated_at"), None)
-    if stamp is None:
-        date_value = str(case.get("date") or "")
+    stamp = None
+    # 业务生效时间优先于归档时间,避免重新归档刷新案例"新鲜度"。
+    for date_value in (case.get("effective_from"), case.get("date")):
+        if not date_value:
+            continue
         try:
-            from datetime import datetime
-            stamp = datetime.fromisoformat(date_value).timestamp()
+            stamp = datetime.fromisoformat(str(date_value)).timestamp()
+            break
         except ValueError:
-            stamp = now
+            continue
+    if stamp is None:
+        stamp = _float_or(case.get("updated_at"), now)
     age_days = max(0.0, now - stamp) / 86400.0
     half_life = max(float(Configs.CASE_SEARCH_HALF_LIFE_DAYS), 1.0)
     return max(0.2, min(1.0, 0.5 ** (age_days / half_life)))

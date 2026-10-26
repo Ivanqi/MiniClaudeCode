@@ -167,12 +167,39 @@ class OutputValidator:
                 if ref not in evidence_ids:
                     errors.append(f"findings[{i}] 引用不存在的证据: {ref}")
 
+        matched_cases = report.get("matched_cases")
+        if not isinstance(matched_cases, list):
+            errors.append("matched_cases 必须为数组")
+            matched_cases = []
+        case_ids = set()
+        for i, case in enumerate(matched_cases):
+            if not isinstance(case, dict):
+                errors.append(f"matched_cases[{i}] 必须为对象")
+                continue
+            case_id = str(case.get("case_id") or "").strip()
+            if not case_id:
+                errors.append(f"matched_cases[{i}] 缺少 case_id")
+            elif case_id in case_ids:
+                errors.append(f"matched_cases[{i}] case_id 重复: {case_id}")
+            else:
+                case_ids.add(case_id)
+            if "score" in case and not isinstance(case["score"], (int, float)):
+                errors.append(f"matched_cases[{i}].score 必须为数值")
+
         for i, rec in enumerate(report.get("recommendations") or []):
             if not str(rec.get("action") or "").strip():
                 errors.append(f"recommendations[{i}].action 不能为空")
             for ref in rec.get("evidence_refs") or []:
                 if ref not in evidence_ids:
                     errors.append(f"recommendations[{i}] 引用不存在的证据: {ref}")
+            case_refs = rec.get("case_refs") or []
+            if not isinstance(case_refs, list):
+                errors.append(f"recommendations[{i}].case_refs 必须为数组")
+            else:
+                for ref in case_refs:
+                    if ref not in case_ids:
+                        errors.append(
+                            f"recommendations[{i}] 引用不存在的 case_id: {ref}")
 
         completeness = report.get("completeness") or {}
         for key in ("ran_steps", "excluded_steps", "no_data_steps", "errors"):
@@ -185,7 +212,9 @@ class OutputValidator:
         return errors
 
     @staticmethod
-    def validate_reasoner_output(obj: dict, valid_refs: set) -> list[str]:
+    def validate_reasoner_output(obj: dict, valid_refs: set,
+                                 valid_case_ids: set | None = None
+                                 ) -> list[str]:
         """校验 LLM 推理输出 {conclusions, recommendations}。"""
         errors: list[str] = []
         if not isinstance(obj.get("conclusions"), str) \
@@ -208,6 +237,13 @@ class OutputValidator:
                 errors.append(f"recommendations[{i}].evidence_refs 必须为数组")
             elif any(ref not in valid_refs for ref in refs):
                 errors.append(f"recommendations[{i}] 引用不在证据内的 step_id")
+            case_refs = rec.get("case_refs")
+            if not isinstance(case_refs, list):
+                errors.append(f"recommendations[{i}].case_refs 必须为数组")
+            elif valid_case_ids is not None and any(
+                    ref not in valid_case_ids for ref in case_refs):
+                errors.append(
+                    f"recommendations[{i}] 引用不存在的 case_id")
         return errors
 
 

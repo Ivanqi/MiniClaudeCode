@@ -54,12 +54,13 @@ class FakeClient:
 
 
 def build_agent(client=None, scope=None, data_dir: Path | None = None,
-                interactive=False, enable_writes=None):
+                interactive=False, enable_writes=None, case_mode=None):
     run_dir = Path(CateringConfigs.CATERING_DIR_PARENT / '.catering/test')
     agent = AnomalyAgent.build(client=client, data_dir=data_dir or DATA_DIR,
                                run_dir=run_dir, scope=scope,
                                interactive=interactive,
-                               enable_writes=enable_writes)
+                               enable_writes=enable_writes,
+                               case_mode=case_mode)
     return agent, run_dir
 
 
@@ -217,6 +218,16 @@ class TestToolDefinitions(unittest.TestCase):
         self.assertIn("archive_case",
                       {t["function"]["name"] for t in write_tools.tool_defs()})
 
+    def test_search_cases_requires_alert_date(self):
+        """工具边界强制日期切面,防止探索模式召回告警日之后的案例。"""
+        tools = CateringTools()
+        with self.assertRaises(ValueError):
+            tools.run_search_cases("A店", "暴雨")
+        result = tools.run_search_cases("A店", "dimension:traffic 暴雨",
+                                        date=ALERT_DATE)
+        self.assertTrue(result["matches"])
+        self.assertEqual(result["filters"]["date_max"], ALERT_DATE)
+
     def test_archive_case_write_path(self):
         """归档写工具:开启后落盘知识库,关闭时拒绝。"""
         with tempfile.TemporaryDirectory() as tmp:
@@ -238,8 +249,9 @@ class TestToolDefinitions(unittest.TestCase):
 
 
 class TestWorkflowEndToEnd(unittest.TestCase):
-    def _run(self, store_id: str):
-        agent, run_dir = build_agent(client=None, interactive=False)
+    def _run(self, store_id: str, case_mode=None):
+        agent, run_dir = build_agent(client=None, interactive=False,
+                                     case_mode=case_mode)
         alert = AnomalyAlert(store_id=store_id, date=ALERT_DATE,
                              source="detector")
         report = agent.run_alert(alert)
@@ -255,20 +267,84 @@ class TestWorkflowEndToEnd(unittest.TestCase):
         self.assertIn("case", steps)
         self.assertTrue(report.matched_cases)
         self.assertEqual(report.meta["template_fallback"], True)
+        self.assertEqual(report.meta["case_mode"], "shadow")
         self.assertEqual(OutputValidator.validate_report(report.to_dict()), [])
         self.assertTrue((run_dir / "reports" / f"{report.report_id}.json")
                         .exists())
         state_files = list(run_dir.glob("run_*.json"))
         self.assertTrue(state_files)
 
-    def test_store_b_ticket(self):
-        """B店:主因客单价,命中历史案例,建议引用案例动作。"""
-        _, _, report = self._run("B店")
+    def test_shadow_retrieval_logged_but_not_injected(self):
+        """shadow:检索照跑并落日志,但生成侧不注入案例与 case 发现。"""
+        output = json.dumps({
+            "conclusions": "主因是客流下降",
+            "recommendations": [
+                {"action": "检查引流", "reason": "客流下降",
+                 "evidence_refs": ["traffic"], "case_refs": []}]},
+            ensure_ascii=False)
+        client = FakeClient([llm_text(output)])
+        agent, run_dir = build_agent(client=client, interactive=False,
+                                     case_mode="shadow")
+        report = agent.run_alert(AnomalyAlert(store_id="A店", date=ALERT_DATE,
+                                              source="detector"))
+        self.assertEqual(report.meta["case_mode"], "shadow")
+        self.assertTrue(report.matched_cases)          # 报告保留审计视图
+        self.assertFalse(any(r.get("source") == "case"
+                             for r in report.recommendations))
+        digest = client.calls[0]["messages"][0]["content"]
+        self.assertIn('"matched_cases": []', digest)
+        self.assertNotIn('"dimension": "case"', digest)
+        log_path = (run_dir / report.report_id / "retrieval" / "case.json")
+        self.assertTrue(log_path.exists())
+        log = json.loads(log_path.read_text())
+        self.assertEqual(log["params"]["main_factor"], "traffic")
+        self.assertTrue(log["candidates"])
+        self.assertEqual(log["filters"]["date_max"], ALERT_DATE)
+
+    def test_store_b_ticket_augment_uses_case_actions(self):
+        """B店 augment:主因客单价,命中历史案例,建议引用真实 case_id。"""
+        _, _, report = self._run("B店", case_mode="augment")
         self.assertEqual(report.main_factor, "ticket")
+        self.assertEqual(report.meta["case_mode"], "augment")
         self.assertTrue(any(c["case_id"] == "CASE-2026-0712-B"
                             for c in report.matched_cases))
-        self.assertTrue(any(r.get("source") == "case"
-                            for r in report.recommendations))
+        case_recs = [r for r in report.recommendations
+                     if r.get("source") == "case"]
+        self.assertTrue(case_recs)
+        self.assertTrue(all(r.get("case_refs") == ["CASE-2026-0712-B"]
+                            for r in case_recs))
+        self.assertEqual(OutputValidator.validate_report(report.to_dict()), [])
+
+    def test_assist_injects_cases_without_template_actions(self):
+        """assist:案例注入生成侧,但模板降级不直接采用案例动作。"""
+        _, _, report = self._run("B店", case_mode="assist")
+        self.assertEqual(report.meta["case_mode"], "assist")
+        self.assertTrue(report.matched_cases)
+        self.assertFalse(any(r.get("source") == "case"
+                             for r in report.recommendations))
+        self.assertEqual(OutputValidator.validate_report(report.to_dict()), [])
+
+    def test_assist_digest_contains_case_metadata(self):
+        """assist:digest 带 case_id/confidence/历史类比标注,LLM 可安全引用。"""
+        output = json.dumps({
+            "conclusions": "主因是客单价下降",
+            "recommendations": [
+                {"action": "控制低价套餐", "reason": "客单价下降",
+                 "evidence_refs": ["ticket"],
+                 "case_refs": ["CASE-2026-0712-B"]}]},
+            ensure_ascii=False)
+        client = FakeClient([llm_text(output)])
+        agent, _ = build_agent(client=client, interactive=False,
+                               case_mode="assist")
+        report = agent.run_alert(AnomalyAlert(store_id="B店", date=ALERT_DATE,
+                                              source="detector"))
+        digest = client.calls[0]["messages"][0]["content"]
+        self.assertIn('"case_id": "CASE-2026-0712-B"', digest)
+        self.assertIn('"confidence":', digest)
+        self.assertIn("历史类比", digest)
+        self.assertTrue(report.meta["llm_used"])
+        self.assertEqual(report.recommendations[0]["case_refs"],
+                         ["CASE-2026-0712-B"])
 
     def test_store_c_normal(self):
         """C店:正常对照,无主因,案例步骤被分支排除。"""
@@ -322,7 +398,8 @@ class TestReasoner(unittest.TestCase):
         output = json.dumps({"conclusions": "主因是客流下降",
                              "recommendations": [
                                  {"action": "检查引流", "reason": "客流下降",
-                                  "evidence_refs": ["traffic"]}]},
+                                  "evidence_refs": ["traffic"],
+                                  "case_refs": []}]},
                             ensure_ascii=False)
         client = FakeClient([llm_text(output)])
         result = Reasoner(client).generate(alert, findings, [], "traffic",
@@ -337,7 +414,8 @@ class TestReasoner(unittest.TestCase):
         output = json.dumps({"conclusions": "c",
                              "recommendations": [
                                  {"action": "a", "reason": "r",
-                                  "evidence_refs": ["traffic"]}]},
+                                  "evidence_refs": ["traffic"],
+                                  "case_refs": []}]},
                             ensure_ascii=False)
         client = FakeClient([llm_text("这不是 JSON"), llm_text(output)])
         result = Reasoner(client).generate(alert, findings, [], "traffic",
@@ -366,12 +444,62 @@ class TestReasoner(unittest.TestCase):
         output = json.dumps({"conclusions": "c",
                              "recommendations": [
                                  {"action": "a", "reason": "r",
-                                  "evidence_refs": ["不存在"]}]},
+                                  "evidence_refs": ["不存在"],
+                                  "case_refs": []}]},
                             ensure_ascii=False)
         client = FakeClient([llm_text(output), llm_text(output)])
         result = Reasoner(client).generate(alert, findings, [], "traffic",
                                            -25832.55)
         self.assertTrue(result["meta"]["template_fallback"])
+
+    def test_llm_case_refs_validated_and_preserved(self):
+        """引用真实 case_id 放行并保留;引用不存在的 case_id 走模板。"""
+        alert, findings = self._fixture()
+        case = {"case_id": "CASE-OK", "summary": "历史案例",
+                "actions": ["复盘"], "date": "2026-06-01",
+                "main_factor": "traffic"}
+        valid = json.dumps({"conclusions": "c",
+                            "recommendations": [
+                                {"action": "a", "reason": "r",
+                                 "evidence_refs": ["traffic"],
+                                 "case_refs": ["CASE-OK"]}]},
+                           ensure_ascii=False)
+        result = Reasoner(FakeClient([llm_text(valid)])).generate(
+            alert, findings, [case], "traffic", -1)
+        self.assertTrue(result["meta"]["llm_used"])
+        self.assertEqual(result["recommendations"][0]["case_refs"],
+                         ["CASE-OK"])
+
+        invalid = valid.replace("CASE-OK", "CASE-NOPE")
+        result = Reasoner(FakeClient([llm_text(invalid),
+                                      llm_text(invalid)])).generate(
+            alert, findings, [case], "traffic", -1)
+        self.assertTrue(result["meta"]["template_fallback"])
+
+    def test_digest_carries_case_metadata_and_valid_json(self):
+        """案例上下文带元数据/历史类比标注,且压缩后仍是合法 JSON。"""
+        alert, findings = self._fixture()
+        case = {"case_id": "CASE-META", "date": "2026-06-22",
+                "main_factor": "traffic", "summary": "暴雨客流下降",
+                "actions": ["投放外卖"], "tags": ["暴雨"],
+                "confidence": 0.9, "version": 3, "source": "legacy",
+                "score": 8.5}
+        text = Reasoner.build_digest(alert, findings, [case], "traffic", -1)
+        digest = json.loads(text)
+        self.assertEqual(digest["matched_cases"][0]["case_id"], "CASE-META")
+        self.assertEqual(digest["matched_cases"][0]["version"], 3)
+        self.assertEqual(digest["matched_cases"][0]["confidence"], 0.9)
+        self.assertIn("历史类比", digest["case_policy"])
+        self.assertLessEqual(len(text), CateringConfigs.DIGEST_MAX_CHARS)
+
+        stress = [Finding(step_id=f"s{i}", dimension="traffic",
+                          verdict="anomaly", summary="x" * 1000,
+                          metrics={"k": "y" * 1000})
+                  for i in range(20)]
+        text = Reasoner.build_digest(alert, stress, [case], "traffic", -1)
+        stressed = json.loads(text)
+        self.assertLessEqual(len(text), CateringConfigs.DIGEST_MAX_CHARS)
+        self.assertTrue(stressed.get("findings_truncated"))
 
 
 # ── 输出结构化校验 ──
@@ -412,6 +540,33 @@ class TestOutputValidator(unittest.TestCase):
         bad_meta = dict(d)
         bad_meta["meta"] = {**d["meta"], "template_fallback": "yes"}
         self.assertTrue(OutputValidator.validate_report(bad_meta))
+
+    def test_case_refs_closed_loop(self):
+        """case_refs 必须闭合到真实 matched case;reasoner 与 report 双层校验。"""
+        valid = {"conclusions": "c", "recommendations": [
+            {"action": "a", "reason": "r", "evidence_refs": ["traffic"],
+             "case_refs": ["CASE-OK"]}]}
+        self.assertEqual(
+            OutputValidator.validate_reasoner_output(
+                valid, {"traffic"}, {"CASE-OK"}), [])
+        invalid = {"conclusions": "c", "recommendations": [
+            {"action": "a", "reason": "r", "evidence_refs": ["traffic"],
+             "case_refs": ["CASE-NOPE"]}]}
+        self.assertTrue(OutputValidator.validate_reasoner_output(
+            invalid, {"traffic"}, {"CASE-OK"}))
+
+        agent, _ = build_agent(client=None, interactive=False,
+                               case_mode="augment")
+        report = agent.run_alert(AnomalyAlert(store_id="B店",
+                                              date=ALERT_DATE,
+                                              source="detector"))
+        d = report.to_dict()
+        self.assertEqual(OutputValidator.validate_report(d), [])
+        case_index = next(i for i, rec in enumerate(d["recommendations"])
+                          if rec.get("case_refs"))
+        d["recommendations"][case_index] = {
+            **d["recommendations"][case_index], "case_refs": ["CASE-NOPE"]}
+        self.assertTrue(OutputValidator.validate_report(d))
 
 
 # ── 探索模式(agentic) ──
@@ -678,6 +833,26 @@ class TestEvaluator(unittest.TestCase):
         summary = Evaluator().run_suite(agent)
         self.assertEqual(summary["passed"], summary["total"])
         self.assertEqual(summary["total"], 3)
+        self.assertEqual(summary["metrics"]["case_citation_valid"], "3/3")
+        self.assertEqual(
+            summary["metrics"]["unsupported_recommendations"], 0)
+        self.assertEqual(
+            summary["metrics"]["unsupported_recommendation_rate"], "0.000")
+
+    def test_retrieval_suite_metrics(self):
+        """检索标注集:recall@k / MRR / 无匹配准确率可计算且全通过。"""
+        summary = Evaluator().run_retrieval_suite(DataHub(DATA_DIR))
+        self.assertEqual(summary["total"], 22)
+        self.assertEqual(summary["passed"], summary["total"])
+        self.assertEqual(summary["metrics"]["recall_at_k"], "1.000")
+        self.assertEqual(summary["metrics"]["mrr"], "1.000")
+        self.assertEqual(summary["metrics"]["no_match_accuracy"], "1.000")
+        # 单条期望 + top-3 时 precision@3 上限为 1/3 左右,门槛只防回归。
+        precision = float(summary["metrics"]["precision_at_k"])
+        self.assertGreaterEqual(precision, 0.3)
+        self.assertLessEqual(precision, 1.0)
+        self.assertGreaterEqual(
+            float(summary["metrics"]["precision_at_1"]), 0.9)
 
     def test_negative_scenario_fails(self):
         """注入错误期望的场景必须被判失败(证明评测框架有效)。"""

@@ -16,14 +16,14 @@
 DataHub 路由、工具、诊断链、评测全部零改动。
 """
 import json
-import re
 from abc import ABC, abstractmethod
 from datetime import date as date_type
 from datetime import timedelta
 from pathlib import Path
 
-from Catering.Cases import CaseStore, case_search_decay, load_cases
+from Catering.Cases import CaseStore, load_cases
 from Catering.Configs import CateringConfigs
+from Catering.Retrieval import CaseRetriever, LexicalCaseRetriever
 
 # ── 错误与记录校验 ──
 
@@ -188,6 +188,13 @@ class KnowledgeBaseSource(JsonFileSource):
 
     category = "knowledge_base"
 
+    def __init__(self, data_dir: Path,
+                 retriever: CaseRetriever | None = None):
+        super().__init__(data_dir)
+        self.case_store = None
+        # 惰性 provider:每次检索重新扫描,兼容测试 patch CASES_DIR 与新增归档。
+        self.retriever = retriever or LexicalCaseRetriever(self.all_cases)
+
     def all_cases(self) -> list[dict]:
         roots = [self.data_dir / "cases"]
         try:
@@ -196,43 +203,17 @@ class KnowledgeBaseSource(JsonFileSource):
             global_root = None
         if global_root is not None:
             roots.append(global_root)
-        store = getattr(self, "case_store", None)
+        store = self.case_store
         if store is not None:
             roots.append(store.cases_dir)
         return load_cases(*roots)
 
     def query(self, store_id: str, date: str = "", symptom: str = "",
-              top_k: int = 3, **params) -> dict:
-        text = str(symptom)
-        tokens = set(re.split(r"[^\w一-鿿]+", text))
-        matches, seen = [], set()
-        for case in self.all_cases():
-            case_id = case.get("case_id")
-            if case_id in seen:
-                continue
-            seen.add(case_id)
-            tags = case.get("tags") or []
-            base = 1.0 if case.get("store_id") == store_id else 0.0
-            base += 2.0 if case.get("main_factor") in tokens else 0.0
-            # 中文标签按子串匹配(分词不可靠),西文标签按 token 匹配
-            base += sum(1.0 for t in tags if t and t in text)
-            base += sum(0.5 for t in tags if t and t in tokens)
-            if base <= 0:
-                continue
-            recency = case_search_decay(case)
-            confidence = float(case.get("confidence", 0.5) or 0.5)
-            score = base * (0.75 + 0.25 * recency) + 0.25 * confidence
-            matches.append({k: case.get(k) for k in
-                            ("case_id", "store_id", "date", "main_factor",
-                             "dimensions", "summary", "actions", "tags",
-                             "version", "updated_at", "source",
-                             "confidence")}
-                           | {"score": score})
-        matches.sort(key=lambda m: (m["score"], m.get("updated_at") or 0),
-                     reverse=True)
-        return {"store_id": store_id, "symptom": symptom,
-                "match_count": len(matches),
-                "matches": matches[:top_k], "missing_fields": []}
+              top_k: int = 3, main_factor: str = "",
+              include_deprecated: bool = False, **params) -> dict:
+        return self.retriever.search(
+            symptom, store_id=store_id, date=date, main_factor=main_factor,
+            top_k=top_k, include_deprecated=include_deprecated)
 
 
 # ── 门面路由 ──
@@ -242,11 +223,12 @@ class DataHub:
     """数据中枢:路由查询到八类数据源,提供日记录/基准/案例检索入口。"""
 
     def __init__(self, data_dir: Path | None = None,
-                 case_store: CaseStore | None = None):
+                 case_store: CaseStore | None = None,
+                 case_retriever: CaseRetriever | None = None):
         self.data_dir = data_dir or CateringConfigs.DATA_DIR
         # 案例写入使用惰性 CASES_DIR(便于 mock.patch);读取同时扫 data_dir/cases。
         self.case_store = case_store or CaseStore()
-        knowledge_base = KnowledgeBaseSource(self.data_dir)
+        knowledge_base = KnowledgeBaseSource(self.data_dir, case_retriever)
         knowledge_base.case_store = self.case_store
         self.sources: dict[str, DataSource] = {
             "store_db": StoreDbSource(self.data_dir),
@@ -302,10 +284,13 @@ class DataHub:
                 days.append(record)
         return days
 
-    def search_cases(self, store_id: str, symptom: str,
-                     top_k: int = 3) -> dict:
-        return self.query("knowledge_base", store_id, "",
-                          symptom=symptom, top_k=top_k)
+    def search_cases(self, store_id: str, symptom: str, top_k: int = 3,
+                     date: str = "", main_factor: str = "",
+                     include_deprecated: bool = False) -> dict:
+        return self.query("knowledge_base", store_id, date,
+                          symptom=symptom, top_k=top_k,
+                          main_factor=main_factor,
+                          include_deprecated=include_deprecated)
 
     def load_all_stores(self) -> list[dict]:
         """加载全部门店经营数据(告警扫描/定时任务的统一入口)。"""

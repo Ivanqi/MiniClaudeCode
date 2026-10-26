@@ -10,6 +10,7 @@
 """
 import json
 from datetime import date as date_type
+from pathlib import Path
 
 from src.BasicOper import BasicOper
 from src.LlmClient import (assistant_message, tool_message, user_message)
@@ -57,12 +58,13 @@ class AnomalyAgent:
                  planner: Planner | None = None,
                  run_dir=None, scope: tuple | None = None,
                  interactive: bool = False, mcp: McpSystem | None = None,
-                 tasks=None, confirm=None):
+                 tasks=None, confirm=None, case_mode: str | None = None):
         self.client = client
         self.tools = tools or CateringTools()
         self.planner = planner or Planner()
         self.reasoner = Reasoner(client)
-        self.run_dir = run_dir or CateringConfigs.RUN_DIR
+        self.run_dir = (Path(run_dir) if run_dir is not None
+                        else CateringConfigs.RUN_DIR)
         self.scope = tuple(scope or ()) or CateringConfigs.ALLOWED_STORES
         self.interactive = interactive
         self.mcp = mcp                       # None = 探索时新建独立实例
@@ -70,18 +72,23 @@ class AnomalyAgent:
         # 写工具的逐次人工确认回调:(tool_name, arguments) -> bool;
         # None 表示无法确认 → 拒绝(fail-closed)。
         self.confirm = confirm
+        mode = (case_mode or CateringConfigs.CASE_RAG_MODE).strip().lower()
+        if mode not in CateringConfigs.CASE_RAG_MODES:
+            raise ValueError(f"未知案例 RAG 模式: {mode}")
+        self.case_mode = mode
 
     @classmethod
     def build(cls, client=None, data_dir=None, run_dir=None, scope=None,
               interactive: bool = False,
               enable_writes: bool | None = None, mcp: McpSystem | None = None,
-              tasks=None, confirm=None) -> "AnomalyAgent":
+              tasks=None, confirm=None,
+              case_mode: str | None = None) -> "AnomalyAgent":
         """依赖注入构造:测试可注入 FakeClient / MCP 系统 / 任务系统与临时目录。"""
         hub = DataHub(data_dir)
         tools = CateringTools(hub, enable_writes=enable_writes)
         return cls(client=client, tools=tools, run_dir=run_dir, scope=scope,
                    interactive=interactive, mcp=mcp, tasks=tasks,
-                   confirm=confirm)
+                   confirm=confirm, case_mode=case_mode)
 
     # ── 工作流模式:run_alert ──
 
@@ -134,11 +141,24 @@ class AnomalyAgent:
             machine.persist(self.run_dir)
             return self._failed_report(alert, run_id, str(e))
 
+        # shadow:检索照跑并落日志,但生成侧看不到案例(含 case 步骤的计数发现);
+        # assist:案例进入 digest,模板不直接采用案例动作;
+        # augment:允许模板降级把案例动作并入报告建议。
+        reasoner_findings = findings
+        reasoner_cases = matched
+        if self.case_mode == "shadow":
+            reasoner_findings = [f for f in findings
+                                 if f.dimension != "case"]
+            reasoner_cases = []
+
         review = "skipped"
         approved = False
         for attempt in range(2):   # rework 最多一次,防止死循环
-            reason = self.reasoner.generate(alert, findings, matched,
-                                            main_factor, main_contrib)
+            reason = self.reasoner.generate(
+                alert, reasoner_findings, reasoner_cases, main_factor,
+                main_contrib,
+                allow_case_actions=(self.case_mode == "augment"))
+            reason["meta"]["case_mode"] = self.case_mode
             machine.transition("reason_ok")   # REASONING -> REVIEWING
             report = self._assemble(alert, run_id, main_factor, main_contrib,
                                     findings, evidence, matched, completeness,
@@ -210,7 +230,8 @@ class AnomalyAgent:
                           "no_data_steps": ["admission"],
                           "errors": [error]},
             meta={"llm_used": False, "template_fallback": True,
-                  "attempts": 0, "llm_error": error, "review": "failed"},
+                  "attempts": 0, "llm_error": error, "review": "failed",
+                  "case_mode": self.case_mode},
             created_at=now_iso())
         return self._persist_report(report, "failed")
 
@@ -231,6 +252,13 @@ class AnomalyAgent:
     def _archive_case(self, report: DiagnosisReport):
         """记忆沉淀:批准后把诊断报告归档进企业知识库,供后续检索。"""
         try:
+            symptoms = [f.summary for f in report.findings
+                        if f.verdict == "anomaly"][:8]
+            metrics_snapshot = {}
+            for finding in report.findings:
+                for key, value in (finding.metrics or {}).items():
+                    if isinstance(value, (bool, int, float, str)):
+                        metrics_snapshot[f"{finding.dimension}.{key}"] = value
             case = {
                 "case_id": f"CASE-{report.alert.date}-{report.alert.store_id}",
                 "store_id": report.alert.store_id,
@@ -239,10 +267,15 @@ class AnomalyAgent:
                 "dimensions": [f.dimension for f in report.findings
                                if f.verdict in ("anomaly", "info")],
                 "summary": report.conclusions[:300],
-                "actions": [r["action"] for r in report.recommendations],
+                # 不把从旧案例抄来的动作再归档,避免案例库自我强化。
+                "actions": [r["action"] for r in report.recommendations
+                            if r.get("source") != "case"],
                 "tags": [report.main_factor]
                         + [f.dimension for f in report.findings
                            if f.verdict == "anomaly"],
+                "symptoms": symptoms,
+                "metrics_snapshot": metrics_snapshot,
+                "effective_from": report.alert.date,
             }
             self.tools.hub.archive_case(
                 case, source="workflow:review_gate", confidence=0.9)

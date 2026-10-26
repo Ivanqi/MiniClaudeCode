@@ -50,6 +50,16 @@ class CateringConfigs:
     REASONER_MAX_TOKENS = 2000
     REASONER_MAX_RETRIES = 1       # 结构化输出解析失败后的重试次数
     DIGEST_MAX_CHARS = 4000        # 喂给 LLM 的证据摘要上限
+    CASE_DIGEST_MAX_CHARS = 1200   # 其中案例上下文独立预算(避免挤掉 findings)
+
+    # ── 案例 RAG ──
+    # shadow: 只检索/落日志,不注入 Reasoner; assist: 作为可选证据注入;
+    # augment: 允许模板降级直接采用案例动作(当前默认的保守起点是 shadow)。
+    CASE_RAG_MODES = ("shadow", "assist", "augment")
+    CASE_RAG_MODE = (os.getenv("CATERING_CASE_RAG_MODE", "shadow")
+                     .strip().lower())
+    CASE_SEARCH_CANDIDATES = 50    # 粗排候选上限(先召回再截 top_k)
+    RETRIEVAL_EVAL_PATH = DATA_DIR / "retrieval_eval.json"
 
     # ── 权限 ──
     # 允许访问的门店列表;空 = 全部放开。格式: CATERING_SCOPE=A店,B店
@@ -60,3 +70,7 @@ class CateringConfigs:
 
     # ── LLM ──
     MODEL = os.getenv("MODEL_ID") or "deepseek-chat"
+
+
+if CateringConfigs.CASE_RAG_MODE not in CateringConfigs.CASE_RAG_MODES:
+    CateringConfigs.CASE_RAG_MODE = "shadow"

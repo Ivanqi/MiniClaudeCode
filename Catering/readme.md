@@ -29,7 +29,7 @@
 | 层 | 模块 | 职责 |
 |---|---|---|
 | 基础层 | `Configs` `Models` | 阈值/目录配置;告警、发现、证据、报告、案例等数据结构 |
-| 领域层 | `DataHub` `Metrics` `Tools` `Cases` | 八类数据源抽象+模拟适配器;LMDI 贡献度拆解等确定性计算;餐饮工具集;案例版本化/去重存储 |
+| 领域层 | `DataHub` `Metrics` `Tools` `Cases` `Retrieval` | 八类数据源抽象+模拟适配器;LMDI 贡献度拆解等确定性计算;餐饮工具集;案例版本化/去重存储;案例检索接口与词法/结构化实现 |
 | 智能体层 | `Workflow` `Guardrails` `Reasoner` | 诊断链引擎+状态机;规则求值/报告校验/工具权限;LLM 归纳+降级 |
 | 编排层 | `AnomalyAgent` `Evaluator` `main.py` | 双模式组装;离线评测;CLI 入口 |
 
@@ -71,6 +71,29 @@
 `{"cases":[record]}` 信封,新增 `version/updated_at/source/confidence/content_hash`;
 同一 `case_id` 内容变化时原地升 version,不再覆盖丢失历史。`all_cases()` 递归扫描
 legacy fixtures 与 `archive/`,`search_cases` 按 `case_id` 去重并加入时间衰减。
+
+案例文档在基础字段上扩展 `symptoms/metrics_snapshot/outcome/effective_from/effective_to/deprecated`,
+这些字段参与 `content_hash` 与版本判断。`data/cases/synthetic_cases.json` 内置
+112 条确定性生成的测试语料(18 类场景 × 6 家门店 + 4 条未来/废弃/过期边界案例),
+可由 `python Catering/gen_case_corpus.py` 重建。检索由 `Catering/Retrieval.py` 的
+`CaseRetriever` 接口承接,当前实现 `LexicalCaseRetriever`:
+
+- 硬过滤:授权门店(由 ToolGuard)、`deprecated`、`case.effective_from/date > 告警日`、生效期已过;
+- 加权信号:同店、主因、异常维度、标签、摘要/症状/动作词法重叠、时间衰减、confidence;
+- 返回值带 `score_breakdown` 和粗排 `candidates`,每次诊断写入
+  `run_dir/{run_id}/retrieval/case.json` 供审计;
+- 同店只是加分,不做硬过滤(跨店经验同样有价值)。
+
+生成侧三种模式由 `CATERING_CASE_RAG_MODE` 控制:
+
+| 模式 | 行为 |
+|---|---|
+| `shadow`(默认) | 检索与日志照跑,报告保留 `matched_cases` 审计视图,但不向 Reasoner 注入案例或 case 发现 |
+| `assist` | 案例带元数据进入 digest,LLM 可引用但模板不直接采用案例动作 |
+| `augment` | 在 assist 基础上,模板降级可取主因一致的一条案例动作进入建议 |
+
+Reasoner 输出新增 `case_refs`;`OutputValidator` 双层校验其必须闭合到真实
+`matched_cases`,且 prompt 明确"案例是历史类比,当前数据优先"。
 
 ### 3. Workflow(需求 3)
 
@@ -152,11 +175,18 @@ python -m Catering.main --list-jobs          # 查看已注册任务
 # 诊断步骤镜像到主代理任务看板
 python -m Catering.main --tasks --store A店 --auto
 
+# 切换案例 RAG 模式
+python -m Catering.main --store B店 --auto --case-mode augment
+
 # 重新生成样本数据(确定性,自校验)
 python Catering/gen_fixtures.py
+
+# 重新生成 112 条案例库测试语料
+python Catering/gen_case_corpus.py
 ```
 
-运行产物默认在 `.catering/`:状态 `run_*.json`、证据 `evidence/`、报告 `reports/`。
+运行产物默认在 `.catering/`:状态 `run_*.json`、证据 `evidence/`、检索日志
+`retrieval/`、报告 `reports/`。
 
 ### 环境变量
 
@@ -166,6 +196,7 @@ python Catering/gen_fixtures.py
 | `CATERING_SCOPE` | 授权门店列表(逗号分隔),如 `A店,B店`;空=全部 |
 | `CATERING_ENABLE_WRITES` | 置 `1` 暴露写工具 `archive_case`;探索模式仍需逐次人工确认(TTY 交互),非 TTY 自动拒绝 |
 | `CATERING_RUN_DIR` | 运行产物目录(默认 `.catering`) |
+| `CATERING_CASE_RAG_MODE` | 案例 RAG 模式:`shadow`(默认)/`assist`/`augment` |
 
 ## 样本数据与评测
 
@@ -178,21 +209,27 @@ python Catering/gen_fixtures.py
 | C店 | 正常对照 | 营收 +2% | 无(不触发告警) |
 
 `python -m Catering.main --eval` 跑 3 个场景,指标:
-主因命中、贡献额误差 ≤0.05 元、证据覆盖、结构合规、步骤效率(3/3 全绿)。
+主因命中、贡献额误差 ≤0.05 元、证据覆盖、结构合规、步骤效率,以及案例引用有效率
+与无支撑建议数(3/3 全绿)。另在 112 条案例语料上跑 `data/retrieval_eval.json` 的 22 条检索标注对,
+输出 recall@k / precision@k / precision@1 / MRR / 无匹配准确率。
 LMDI 期望值由生成器**内联独立实现**写入 `data/expected_contributions.json`,
 与 `Metrics` 生产实现交叉验证。
 
 ## 测试
 
 ```bash
-python -m unittest discover -s tests -v    # 332 个用例(含 Catering 39 个),全部离线
+python -m unittest discover -s tests -v    # 452 个用例(含 Catering 57 个),全部离线
 ```
 
 ## 已知限制(v1)
 
 - 基准口径为前 7 日均值,未做周末/节假日校准;
 - 样本数据窗口无停业日,LMDI 零/负基期场景由单测覆盖(标 structural_change,不猜值);
-- 知识库检索为关键词/标签打分,未用向量检索;
+- 知识库检索当前为确定性词法+元数据加权(零依赖),BM25/FTS5、query expansion 与
+  cross-encoder rerank 留待 P1;向量检索需新增模型依赖,待检索评测显示稳定漏召后再上;
+- 检索标注集包含 20 条正例 + 2 条过滤负例,期望标签仍以 2 条人工案例为主;
+  precision@k 在"单条期望 + top-3"下天然偏低,主要看 precision@1/MRR 与回归趋势,
+  P1 需补充更多难负例、多相关标注与人工采纳反馈;
 - 探索模式产出为自由文本(不强制报告 schema),评测重点为调用效率与权限零违规;
 - 写工具逐次确认依赖 TTY;cron/非交互场景会 fail-closed,不自动归档;
 - 品类客单以"订单"为分母,与门店客单价(客流分母)口径不同,不可直接比较;

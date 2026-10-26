@@ -98,6 +98,7 @@ def print_report(report: DiagnosisReport):
     meta = report.meta
     Terminal.print(f"\nmeta: llm_used={meta.get('llm_used')} "
                    f"template_fallback={meta.get('template_fallback')} "
+                   f"case_mode={meta.get('case_mode')} "
                    f"review={meta.get('review')}")
     if meta.get("report_path"):
         Terminal.print(f"报告已落盘: {meta['report_path']}")
@@ -165,7 +166,11 @@ def cmd_eval(client) -> int:
     evaluator = Evaluator()
     summary = evaluator.run_suite(agent)
     Evaluator.print_report(summary)
-    return 0 if summary["passed"] == summary["total"] else 1
+    retrieval = evaluator.run_retrieval_suite(agent.tools.hub)
+    Evaluator.print_retrieval_report(retrieval)
+    diagnosis_ok = summary["passed"] == summary["total"]
+    retrieval_ok = retrieval["passed"] == retrieval["total"]
+    return 0 if diagnosis_ok and retrieval_ok else 1
 
 
 def cmd_schedule(args, client) -> int:
@@ -229,11 +234,15 @@ def main(argv=None) -> int:
     parser.add_argument("--tasks", action="store_true", help="把诊断步骤镜像到 src.TaskSystem 任务看板")
     parser.add_argument("--no-llm", action="store_true", help="不调用 LLM(模板结论)")
     parser.add_argument("--auto", action="store_true", help="跳过人工审批")
+    parser.add_argument("--case-mode", choices=CateringConfigs.CASE_RAG_MODES,
+                        help="案例 RAG 模式: shadow/assist/augment(默认 shadow)")
     parser.add_argument("--report-dir", help="运行产物目录(默认 .catering)")
     args = parser.parse_args(argv)
 
     run_dir = Path(args.report_dir) if args.report_dir else None
     CateringConfigs.RUN_DIR = run_dir or CateringConfigs.RUN_DIR
+    if args.case_mode:
+        CateringConfigs.CASE_RAG_MODE = args.case_mode
 
     if args.eval:
         return cmd_eval(None)

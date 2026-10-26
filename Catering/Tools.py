@@ -365,15 +365,25 @@ class CateringTools:
                 "missing_fields": []}
 
     def run_search_cases(self, store_id: str, symptom: str,
-                         top_k: int = 3) -> dict:
-        """历史类似案例检索(企业知识库):按症状关键词与主因匹配打分。"""
-        return self.hub.search_cases(store_id, symptom, top_k=top_k)
+                         top_k: int = 3, date: str = "",
+                         main_factor: str = "") -> dict:
+        """历史类似案例检索(企业知识库):结构化过滤 + 词法/元数据打分。"""
+        if not date:
+            # 工具边界强制日期切面,避免探索模式检索到告警日之后的案例。
+            raise ValueError("search_cases 必须提供告警日期 date")
+        return self.hub.search_cases(store_id, symptom, top_k=top_k,
+                                     date=date, main_factor=main_factor)
 
     # ── 受控写工具 ──
 
     def run_archive_case(self, store_id: str, date: str, main_factor: str,
                          dimensions: list, summary: str, actions: list,
-                         tags: list | None = None) -> dict:
+                         tags: list | None = None,
+                         symptoms: list | None = None,
+                         metrics_snapshot: dict | None = None,
+                         outcome: str = "",
+                         effective_from: str = "",
+                         effective_to: str = "") -> dict:
         """归档诊断案例到企业知识库(写操作,默认禁用,需人工确认)。"""
         if not self.enable_writes:
             raise ValueError("写工具 archive_case 默认禁用(需开启 CATERING_ENABLE_WRITES)")
@@ -381,7 +391,12 @@ class CateringTools:
         case_id = f"CASE-{date}-{store_id}"
         case = {"case_id": case_id, "store_id": store_id, "date": date,
                 "main_factor": main_factor, "dimensions": dimensions,
-                "summary": summary, "actions": actions, "tags": tags}
+                "summary": summary, "actions": actions, "tags": tags,
+                "symptoms": symptoms or [],
+                "metrics_snapshot": metrics_snapshot or {},
+                "outcome": outcome,
+                "effective_from": effective_from,
+                "effective_to": effective_to}
         result = self.hub.archive_case(case, source="tool:archive_case",
                                        confidence=0.8)
         return {"archived": case_id, "path": str(result.path),
@@ -463,12 +478,16 @@ class CateringTools:
                                 "date": {"type": "string"}},
                  "required": ["store_id", "date"]}),
             make_function_tool("search_cases",
-                "在企业知识库中检索历史类似案例,按症状关键词与主因匹配打分。",
+                "在企业知识库中检索历史类似案例;按告警日/主因过滤与加权,"
+                "返回打分及分数分解,案例只作历史类比。",
                 {"type": "object",
                  "properties": {"store_id": {"type": "string"},
                                 "symptom": {"type": "string"},
+                                "date": {"type": "string",
+                                         "description": "告警日 YYYY-MM-DD"},
+                                "main_factor": {"type": "string"},
                                 "top_k": {"type": "integer"}},
-                 "required": ["store_id", "symptom"]}),
+                 "required": ["store_id", "symptom", "date"]}),
         ]
         if self.enable_writes:
             tools.append(make_function_tool("archive_case",
@@ -483,7 +502,13 @@ class CateringTools:
                                 "actions": {"type": "array",
                                             "items": {"type": "string"}},
                                 "tags": {"type": "array",
-                                         "items": {"type": "string"}}},
+                                         "items": {"type": "string"}},
+                                "symptoms": {"type": "array",
+                                             "items": {"type": "string"}},
+                                "metrics_snapshot": {"type": "object"},
+                                "outcome": {"type": "string"},
+                                "effective_from": {"type": "string"},
+                                "effective_to": {"type": "string"}},
                  "required": ["store_id", "date", "main_factor",
                               "dimensions", "summary", "actions"]}))
         return tools

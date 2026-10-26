@@ -8,6 +8,7 @@ from pathlib import Path
 from Catering.Cases import CaseStore, load_cases, validate_case_id
 from Catering.Configs import CateringConfigs
 from Catering.DataHub import DataHub
+from Catering.Retrieval import LexicalCaseRetriever
 
 
 def case(case_id="CASE-2026-09-01-A店", summary="客流下降", **overrides):
@@ -119,6 +120,129 @@ class TestCases(unittest.TestCase):
                 validate_case_id(value)
         self.assertEqual(validate_case_id("CASE-2026-09-01-A店"),
                          "CASE-2026-09-01-A店")
+
+    def test_extended_fields_persist_and_bump_version(self):
+        """新增 schema 字段参与 hash/版本:症状变化必须产生新版本。"""
+        store = CaseStore()
+        first = store.upsert(case(
+            symptoms=["暴雨", "客流下降"],
+            metrics_snapshot={"traffic.pct_change": -25.0},
+            outcome="次日恢复", effective_from="2026-06-22",
+            effective_to="2026-07-31"), source="tool:archive_case",
+            confidence=0.8)
+        self.assertEqual(first.record["effective_from"], "2026-06-22")
+        self.assertEqual(set(first.record["symptoms"]), {"暴雨", "客流下降"})
+        self.assertEqual(
+            first.record["metrics_snapshot"]["traffic.pct_change"], -25.0)
+        self.assertEqual(first.record["outcome"], "次日恢复")
+        self.assertFalse(first.record["deprecated"])
+
+        changed = store.upsert(case(
+            symptoms=["暴雨", "客流下降", "外卖上升"],
+            metrics_snapshot={"traffic.pct_change": -25.0},
+            outcome="次日恢复", effective_from="2026-06-22",
+            effective_to="2026-07-31"), source="tool:archive_case",
+            confidence=0.8)
+        self.assertTrue(changed.updated)
+        self.assertEqual(changed.record["version"], 2)
+        loaded = load_cases(self.cases_dir)
+        self.assertEqual(loaded[0]["version"], 2)
+        self.assertEqual(len(loaded[0]["symptoms"]), 3)
+
+    def test_retrieval_date_and_deprecated_filters(self):
+        """告警日之前/生效期内/未废弃才可召回;同店只是加权不是硬过滤。"""
+        payload = {"cases": [
+            case(case_id="CASE-OK", date="2026-06-01"),
+            case(case_id="CASE-FUTURE", date="2026-12-01"),
+            case(case_id="CASE-DEP", date="2026-06-01", deprecated=True),
+            case(case_id="CASE-EXPIRED", date="2026-06-01",
+                 effective_to="2026-07-01"),
+            case(case_id="CASE-UNDATED", date=""),
+        ]}
+        (self.cases_dir / "history_cases.json").write_text(
+            json.dumps(payload, ensure_ascii=False))
+        hub = DataHub(data_dir=self.data_dir)
+        result = hub.search_cases("A店", "客流下降", top_k=10,
+                                  date="2026-09-01")
+        ids = {match["case_id"] for match in result["matches"]}
+        self.assertEqual(ids, {"CASE-OK"})
+        self.assertEqual(result["filters"]["excluded"],
+                         {"deprecated": 1, "future": 1, "expired": 1,
+                          "undated": 1})
+
+        with_deprecated = hub.search_cases(
+            "A店", "客流下降", top_k=10, date="2026-09-01",
+            include_deprecated=True)
+        self.assertEqual(
+            {m["case_id"] for m in with_deprecated["matches"]},
+            {"CASE-OK", "CASE-DEP"})
+
+        future_alert = hub.search_cases("A店", "客流下降", top_k=10,
+                                        date="2026-05-01")
+        self.assertEqual(future_alert["match_count"], 0)
+
+    def test_synthetic_corpus_has_100_plus_valid_cases(self):
+        """案例库测试语料 >=100 条,字段完整、ID 唯一、过滤边界可识别。"""
+        corpus_path = (CateringConfigs.CATERING_DIR / "data" / "cases"
+                       / "synthetic_cases.json")
+        payload = json.loads(corpus_path.read_text())
+        cases = payload["cases"]
+        self.assertGreaterEqual(len(cases), 100)
+        ids = [case["case_id"] for case in cases]
+        self.assertEqual(len(ids), len(set(ids)))
+        required = ("case_id", "store_id", "date", "main_factor",
+                    "dimensions", "summary", "actions", "tags", "symptoms",
+                    "metrics_snapshot", "outcome", "effective_from",
+                    "effective_to", "deprecated", "confidence")
+        for case in cases:
+            for key in required:
+                self.assertIn(key, case, f"{case.get('case_id')} 缺少 {key}")
+            self.assertIn(case["main_factor"], ("traffic", "ticket", "none"))
+            self.assertRegex(case["date"], r"^\d{4}-\d{2}-\d{2}$")
+        by_id = {case["case_id"]: case for case in cases}
+        self.assertIn("CASE-SYN-FUTURE-1", by_id)
+        self.assertIn("CASE-SYN-DEPRECATED-1", by_id)
+        self.assertTrue(by_id["CASE-SYN-DEPRECATED-1"]["deprecated"])
+        self.assertIn("CASE-SYN-EXPIRED-1", by_id)
+
+        # 真实语料上的过滤:未来/废弃/过期案例在告警日视角不可召回。
+        retriever = LexicalCaseRetriever(lambda: cases)
+        result = retriever.search("台风预警 临时闭店", store_id="C店",
+                                  date="2026-09-01")
+        self.assertEqual(result["match_count"], 0)
+        self.assertGreaterEqual(result["filters"]["excluded"]["future"], 1)
+        self.assertGreaterEqual(result["filters"]["excluded"]["deprecated"], 1)
+        self.assertGreaterEqual(result["filters"]["excluded"]["expired"], 2)
+
+    def test_lexical_retriever_breakdown_and_same_store_boost(self):
+        cases = [
+            case(case_id="CASE-T", main_factor="traffic", tags=["暴雨"]),
+            case(case_id="CASE-K", store_id="B店", main_factor="ticket",
+                 tags=["低价套餐"]),
+        ]
+        retriever = LexicalCaseRetriever(lambda: cases)
+        result = retriever.search("dimension:traffic 暴雨",
+                                  store_id="A店", date="2026-09-01",
+                                  main_factor="traffic")
+        self.assertEqual(result["matches"][0]["case_id"], "CASE-T")
+        breakdown = result["matches"][0]["score_breakdown"]
+        self.assertEqual(breakdown["main_factor"], 2.0)
+        self.assertEqual(breakdown["dimensions"], 1.0)
+        self.assertGreater(result["matches"][0]["score"], 0)
+        self.assertTrue(result["candidates"])
+        self.assertEqual(result["filters"]["total_cases"], 2)
+
+        # 跨店案例仍可召回:门店只加分,不做硬过滤。
+        cross_store = retriever.search("低价套餐", store_id="A店",
+                                       date="2026-09-01")
+        self.assertIn("CASE-K",
+                      [m["case_id"] for m in cross_store["matches"]])
+        # 纯同店、无主题信号不召回。
+        store_only = retriever.search("露营 宠物 团建", store_id="A店",
+                                      date="2026-09-01")
+        self.assertEqual(store_only["match_count"], 0)
+        with self.assertRaises(ValueError):
+            retriever.search("x", date="bad-date")
 
 
 if __name__ == "__main__":
