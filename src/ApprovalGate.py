@@ -36,7 +36,6 @@ class ApprovalGate:
         self.auto_approve = set(
             Configs.AUTO_APPROVE_TOOLS if auto_approve is None
             else auto_approve)
-        print(self.auto_approve)
         self._prompt = prompt_func or input
         self._tty_check = tty_check or (lambda: sys.stdin.isatty())
         self._thread_check = thread_check or (

@@ -126,8 +126,6 @@ class Configs:
     AUTO_APPROVE_TOOLS = tuple(
         item.strip() for item in os.getenv("AUTO_APPROVE_TOOLS", "").split(",")
         if item.strip())
-    print("\n --- b ---")
-    print(AUTO_APPROVE_TOOLS)
 
     @classmethod
     def audit_dir(cls) -> Path:
