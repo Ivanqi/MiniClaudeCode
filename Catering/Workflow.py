@@ -374,6 +374,10 @@ class DiagnosticEngine:
             "candidates": result.get("candidates") or [],
             "missing_fields": result.get("missing_fields") or [],
             "error": result.get("error"),
+            # P1:每路 rank/融合/重排/延迟/降级原因都在 candidates 或此块中。
+            "retrieval": result.get("retrieval"),
+            "degraded": result.get("degraded"),
+            "latency_ms": result.get("latency_ms"),
         }
         try:
             retrieval_dir = self.run_dir / "retrieval"

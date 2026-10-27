@@ -840,13 +840,22 @@ class TestEvaluator(unittest.TestCase):
             summary["metrics"]["unsupported_recommendation_rate"], "0.000")
 
     def test_retrieval_suite_metrics(self):
-        """检索标注集:recall@k / MRR / 无匹配准确率可计算且全通过。"""
+        """检索标注集:严格回归全通过,group/filter 指标可计算。"""
         summary = Evaluator().run_retrieval_suite(DataHub(DATA_DIR))
-        self.assertEqual(summary["total"], 22)
-        self.assertEqual(summary["passed"], summary["total"])
+        self.assertEqual(summary["regression_total"], 22)
+        self.assertEqual(summary["regression_passed"], 22)
+        self.assertGreaterEqual(summary["total"], 50)
+        self.assertGreaterEqual(summary["group_total"], 30)
         self.assertEqual(summary["metrics"]["recall_at_k"], "1.000")
+        self.assertEqual(summary["metrics"]["recall_at_3"], "1.000")
         self.assertEqual(summary["metrics"]["mrr"], "1.000")
+        self.assertEqual(summary["metrics"]["ndcg_at_3"], "1.000")
         self.assertEqual(summary["metrics"]["no_match_accuracy"], "1.000")
+        self.assertEqual(summary["metrics"]["group_hit_at_3"], "1.000")
+        self.assertEqual(summary["metrics"]["filter_pass_rate"], "1.000")
+        self.assertEqual(summary["metrics"]["excluded_leak_matches"], "0")
+        self.assertEqual(summary["metrics"]["excluded_leak_candidates"], "0")
+        self.assertIn("p95_latency_ms", summary["metrics"])
         # 单条期望 + top-3 时 precision@3 上限为 1/3 左右,门槛只防回归。
         precision = float(summary["metrics"]["precision_at_k"])
         self.assertGreaterEqual(precision, 0.3)

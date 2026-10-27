@@ -79,10 +79,10 @@ class Reasoner:
     @staticmethod
     def _case_context(case: dict) -> dict:
         """注入 LLM 的案例上下文:保留可追溯元数据,不携带无关大字段。"""
-        fields = ("case_id", "date", "main_factor", "dimensions", "summary",
-                  "actions", "tags", "symptoms", "outcome", "confidence",
-                  "version", "source", "score", "effective_from",
-                  "effective_to", "deprecated")
+        fields = ("case_id", "store_id", "date", "main_factor",
+                  "dimensions", "summary", "actions", "tags", "symptoms",
+                  "outcome", "confidence", "version", "source", "score",
+                  "effective_from", "effective_to", "deprecated")
         return {key: case.get(key) for key in fields
                 if case.get(key) is not None}
 

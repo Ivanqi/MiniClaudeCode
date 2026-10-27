@@ -3,6 +3,7 @@ import json
 import tempfile
 import time
 import unittest
+from datetime import datetime
 from pathlib import Path
 
 from Catering.Cases import CaseStore, load_cases, validate_case_id
@@ -181,15 +182,20 @@ class TestCases(unittest.TestCase):
                                         date="2026-05-01")
         self.assertEqual(future_alert["match_count"], 0)
 
-    def test_synthetic_corpus_has_100_plus_valid_cases(self):
-        """案例库测试语料 >=100 条,字段完整、ID 唯一、过滤边界可识别。"""
+    def test_synthetic_corpus_has_1000_plus_valid_cases(self):
+        """案例库测试语料 >=1000 条,字段完整、ID 唯一、过滤边界可识别。"""
         corpus_path = (CateringConfigs.CATERING_DIR / "data" / "cases"
                        / "synthetic_cases.json")
         payload = json.loads(corpus_path.read_text())
         cases = payload["cases"]
-        self.assertGreaterEqual(len(cases), 100)
+        self.assertGreaterEqual(len(cases), 1000)
         ids = [case["case_id"] for case in cases]
         self.assertEqual(len(ids), len(set(ids)))
+        self.assertGreaterEqual(
+            len({case["store_id"] for case in cases}), 50)
+        self.assertEqual(
+            {case["main_factor"] for case in cases},
+            {"traffic", "ticket", "none"})
         required = ("case_id", "store_id", "date", "main_factor",
                     "dimensions", "summary", "actions", "tags", "symptoms",
                     "metrics_snapshot", "outcome", "effective_from",
@@ -213,6 +219,32 @@ class TestCases(unittest.TestCase):
         self.assertGreaterEqual(result["filters"]["excluded"]["future"], 1)
         self.assertGreaterEqual(result["filters"]["excluded"]["deprecated"], 1)
         self.assertGreaterEqual(result["filters"]["excluded"]["expired"], 2)
+
+    def test_lexical_scoring_golden_and_store_id_not_topic(self):
+        """锁定 _score_case 抽取前后的分数;门店 ID 不能当作文本主题。"""
+        cases = [case(case_id="CASE-G", date="2026-09-01",
+                      main_factor="traffic", tags=["暴雨"])]
+        clock = lambda: datetime.fromisoformat("2026-09-01").timestamp()
+        retriever = LexicalCaseRetriever(lambda: cases, clock=clock)
+        result = retriever.search(
+            "dimension:traffic 暴雨", store_id="A店",
+            date="2026-09-01", main_factor="traffic")
+        match = result["matches"][0]
+        breakdown = match["score_breakdown"]
+        self.assertEqual(breakdown["store"], 1.0)
+        self.assertEqual(breakdown["main_factor"], 2.0)
+        self.assertEqual(breakdown["dimensions"], 1.0)
+        self.assertEqual(breakdown["tags"], 1.5)
+        self.assertAlmostEqual(breakdown["text_overlap"], 1.2)
+        self.assertAlmostEqual(breakdown["base"], 6.7)
+        self.assertAlmostEqual(breakdown["recency"], 1.0)
+        self.assertAlmostEqual(breakdown["confidence"], 0.5)
+        self.assertAlmostEqual(match["score"], 6.825)
+
+        # query 只出现门店 ID 时,不能靠同店 + 文本重叠误召回。
+        store_only = retriever.search(
+            "A店", store_id="A店", date="2026-09-01")
+        self.assertEqual(store_only["match_count"], 0)
 
     def test_lexical_retriever_breakdown_and_same_store_boost(self):
         cases = [

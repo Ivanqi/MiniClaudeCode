@@ -23,7 +23,7 @@ from pathlib import Path
 
 from Catering.Cases import CaseStore, load_cases
 from Catering.Configs import CateringConfigs
-from Catering.Retrieval import CaseRetriever, LexicalCaseRetriever
+from Catering.Retrieval import CaseRetriever, build_case_retriever
 
 # ── 错误与记录校验 ──
 
@@ -193,7 +193,8 @@ class KnowledgeBaseSource(JsonFileSource):
         super().__init__(data_dir)
         self.case_store = None
         # 惰性 provider:每次检索重新扫描,兼容测试 patch CASES_DIR 与新增归档。
-        self.retriever = retriever or LexicalCaseRetriever(self.all_cases)
+        # 默认 lexical;CASE_RETRIEVAL_MODE=hybrid 时由工厂构建混合检索。
+        self.retriever = retriever or build_case_retriever(self.all_cases)
 
     def all_cases(self) -> list[dict]:
         roots = [self.data_dir / "cases"]
@@ -238,6 +239,10 @@ class DataHub:
             "external_api": ExternalApiSource(self.data_dir),
             "knowledge_base": knowledge_base,
         }
+        # hybrid 检索在初始化时预热索引,避免首次交互检索承担冷加载成本。
+        warmup = getattr(knowledge_base.retriever, "warmup", None)
+        if callable(warmup):
+            warmup()
 
     def archive_case(self, case: dict, source: str = "tool:archive_case",
                      confidence: float = 0.8):

@@ -161,15 +161,20 @@ def cmd_run(args, client) -> int:
     return 0
 
 
-def cmd_eval(client) -> int:
+def cmd_eval(client, compare: bool = False) -> int:
     agent = AnomalyAgent.build(client=None, interactive=False)
     evaluator = Evaluator()
     summary = evaluator.run_suite(agent)
     Evaluator.print_report(summary)
     retrieval = evaluator.run_retrieval_suite(agent.tools.hub)
     Evaluator.print_retrieval_report(retrieval)
+    if compare:
+        comparison = evaluator.compare_retrieval_modes(agent.tools.hub)
+        Evaluator.print_retrieval_comparison(comparison)
     diagnosis_ok = summary["passed"] == summary["total"]
-    retrieval_ok = retrieval["passed"] == retrieval["total"]
+    # group/filter/probe 是观察指标;CI 只对严格回归集设门禁。
+    retrieval_ok = (retrieval.get("regression_passed", 0)
+                    == retrieval.get("regression_total", 0))
     return 0 if diagnosis_ok and retrieval_ok else 1
 
 
@@ -236,6 +241,11 @@ def main(argv=None) -> int:
     parser.add_argument("--auto", action="store_true", help="跳过人工审批")
     parser.add_argument("--case-mode", choices=CateringConfigs.CASE_RAG_MODES,
                         help="案例 RAG 模式: shadow/assist/augment(默认 shadow)")
+    parser.add_argument("--retrieval-mode",
+                        choices=CateringConfigs.CASE_RETRIEVAL_MODES,
+                        help="案例检索模式: lexical/hybrid(默认 lexical)")
+    parser.add_argument("--retrieval-compare", action="store_true",
+                        help="配合 --eval:对比 lexical/hybrid/hybrid+heuristic")
     parser.add_argument("--report-dir", help="运行产物目录(默认 .catering)")
     args = parser.parse_args(argv)
 
@@ -243,9 +253,11 @@ def main(argv=None) -> int:
     CateringConfigs.RUN_DIR = run_dir or CateringConfigs.RUN_DIR
     if args.case_mode:
         CateringConfigs.CASE_RAG_MODE = args.case_mode
+    if args.retrieval_mode:
+        CateringConfigs.CASE_RETRIEVAL_MODE = args.retrieval_mode
 
     if args.eval:
-        return cmd_eval(None)
+        return cmd_eval(None, compare=args.retrieval_compare)
     client = None if args.no_llm or args.eval else build_client()
     if args.schedule or args.list_jobs:
         return cmd_schedule(args, client)

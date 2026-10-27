@@ -22,3 +22,4 @@ local_model/__pycache__/
 .memory/
 .team/
 .plans/
+Catering/data/cases/synthetic_cases.json

@@ -7,6 +7,14 @@ import os
 from pathlib import Path
 
 
+def _int_env(name: str, default: int, minimum: int = 0) -> int:
+    try:
+        value = int(os.getenv(name, str(default)))
+    except (TypeError, ValueError):
+        value = default
+    return max(minimum, value)
+
+
 class CateringConfigs:
     """餐饮业务配置常量,按职责分组。"""
 
@@ -61,6 +69,22 @@ class CateringConfigs:
     CASE_SEARCH_CANDIDATES = 50    # 粗排候选上限(先召回再截 top_k)
     RETRIEVAL_EVAL_PATH = DATA_DIR / "retrieval_eval.json"
 
+    # 检索管线:lexical 保持 P0 行为;hybrid 为 BM25 + structured + RRF。
+    CASE_RETRIEVAL_MODES = ("lexical", "hybrid")
+    CASE_RETRIEVAL_MODE = (
+        os.getenv("CATERING_CASE_RETRIEVAL_MODE", "lexical")
+        .strip().lower())
+    CASE_RERANK_MODES = ("off", "heuristic")
+    CASE_RERANK_MODE = (
+        os.getenv("CATERING_CASE_RERANK_MODE", "heuristic")
+        .strip().lower())
+    CASE_RETRIEVAL_TIMEOUT_MS = _int_env(
+        "CATERING_CASE_RETRIEVAL_TIMEOUT_MS", 300, minimum=1)
+    CASE_RECALL_PER_ROUTE = CASE_SEARCH_CANDIDATES
+    CASE_FUSION_RRF_K = 60
+    # heuristic rerank 很便宜(全融合候选 ~6ms);20–30 的窄重排留给 P2。
+    CASE_RERANK_TOP_N = 100
+
     # ── 权限 ──
     # 允许访问的门店列表;空 = 全部放开。格式: CATERING_SCOPE=A店,B店
     ALLOWED_STORES = tuple(
@@ -74,3 +98,8 @@ class CateringConfigs:
 
 if CateringConfigs.CASE_RAG_MODE not in CateringConfigs.CASE_RAG_MODES:
     CateringConfigs.CASE_RAG_MODE = "shadow"
+if (CateringConfigs.CASE_RETRIEVAL_MODE
+        not in CateringConfigs.CASE_RETRIEVAL_MODES):
+    CateringConfigs.CASE_RETRIEVAL_MODE = "lexical"
+if CateringConfigs.CASE_RERANK_MODE not in CateringConfigs.CASE_RERANK_MODES:
+    CateringConfigs.CASE_RERANK_MODE = "off"

@@ -1,7 +1,7 @@
-"""确定性生成案例库测试语料(>=100 条)。
+"""确定性生成案例库测试语料(>=1000 条)。
 
 输出 `data/cases/synthetic_cases.json`:
-- 18 类经营异常原型 × 6 家历史门店 = 108 条基础案例;
+- 18 类经营异常原型 × 60 家历史门店 = 1080 条基础案例;
 - 4 条边界案例(未来日期/已废弃/已过期)用于检索过滤测试;
 - 全部日期、指标、文案可复现,不依赖随机数,便于回归与人工阅读。
 
@@ -12,7 +12,9 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 OUTPUT = Path(__file__).resolve().parent / "data" / "cases" / "synthetic_cases.json"
-STORES = ("A店", "B店", "C店", "D店", "E店", "F店")
+# A/B/C 是仓库自带样本门店,其余为测试语料中的历史门店编号。
+STORES = ("A店", "B店", "C店") + tuple(
+    f"S{i:02d}店" for i in range(1, 58))
 
 # 每类原型覆盖一种真实经营场景;门店/日期/指标在生成时做确定性变化。
 ARCHETYPES = [
@@ -349,11 +351,13 @@ def _metric_values(archetype: dict, ai: int, si: int) -> tuple[dict, float, int]
 
 def build_cases() -> list[dict]:
     cases: list[dict] = []
-    base_day = date(2025, 2, 15)
+    base_day = date(2025, 1, 6)
     index = 1
     for ai, archetype in enumerate(ARCHETYPES):
         for si, store in enumerate(STORES):
-            day = base_day + timedelta(days=ai * 17 + si * 5)
+            # 取模保证全部基础案例落在 2025 年内,避免合成案例比人工案例更新
+            # 而挤占 legacy 案例的排序;日期差异仍足够覆盖全年。
+            day = base_day + timedelta(days=(ai * 19 + si * 7) % 350)
             metrics, value, display = _metric_values(archetype, ai, si)
             stamp = datetime(day.year, day.month, day.day,
                              tzinfo=timezone.utc).timestamp()
@@ -381,7 +385,7 @@ def build_cases() -> list[dict]:
                 "date": day.isoformat(),
                 "main_factor": archetype["main_factor"],
                 "dimensions": list(archetype["dimensions"]),
-                "summary": summary,
+                "summary": f"{store} {summary}",
                 "actions": list(archetype["actions"]),
                 "tags": list(archetype["tags"]),
                 "symptoms": symptoms,
@@ -409,7 +413,7 @@ def main() -> int:
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT.write_text(json.dumps({
         "schema_version": 1,
-        "description": "确定性生成的案例库测试语料:18 类场景 × 6 家门店 + 4 条过滤边界案例。",
+        "description": "确定性生成的案例库测试语料:18 类场景 × 60 家门店 + 4 条过滤边界案例。",
         "cases": cases,
     }, ensure_ascii=False, indent=2))
     print(f"wrote {len(cases)} cases -> {OUTPUT}")

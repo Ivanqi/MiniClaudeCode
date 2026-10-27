@@ -8,9 +8,12 @@ import json
 import math
 import re
 import time
+from collections import OrderedDict
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+from stat import S_ISREG
+from threading import Lock
 
 from src.Configs import Configs
 from src.FileLock import atomic_write_text, ensure_private_dir, file_lock
@@ -111,10 +114,13 @@ def _canonical_case(case: dict) -> dict:
     }
 
 
-def case_hash(case: dict) -> str:
-    canonical = _canonical_case(case)
+def _canonical_hash(canonical: dict) -> str:
     return content_hash(json.dumps(canonical, ensure_ascii=False,
                                    sort_keys=True))
+
+
+def case_hash(case: dict) -> str:
+    return _canonical_hash(_canonical_case(case))
 
 
 def _float_or(value, default=None):
@@ -162,8 +168,15 @@ def _case_from_raw(raw: dict, path: Path, now: float,
         "updated_at": updated_at,
         "source": redact(str(raw.get("source") or "legacy"))[:200],
         "confidence": confidence,
-        "content_hash": str(raw.get("content_hash") or case_hash(case)),
+        "content_hash": str(raw.get("content_hash") or _canonical_hash(case)),
     }
+
+
+# 案例目录只读缓存:按"根目录 + 文件签名"失效,避免每次检索重解析 1000+ 案例。
+# 返回列表由调用方只读使用;CaseStore.upsert 写入后文件签名变化会自动失效。
+_LOAD_CACHE: OrderedDict = OrderedDict()
+_LOAD_CACHE_MAX = 8
+_LOAD_CACHE_LOCK = Lock()
 
 
 def load_cases(*roots: Path | str | None) -> list[dict]:
@@ -183,40 +196,61 @@ def load_cases(*roots: Path | str | None) -> list[dict]:
         seen_roots.add(key)
         resolved.append(path)
 
-    records: dict[str, dict] = {}
+    file_entries = []
     for root in resolved:
         for path in sorted(root.rglob("*.json")):
-            if path.is_symlink() or not path.is_file():
+            if path.is_symlink():
                 continue
             try:
-                payload = json.loads(path.read_text(encoding="utf-8"))
-            except (OSError, json.JSONDecodeError):
-                continue
-            if isinstance(payload, dict) and isinstance(
-                    payload.get("cases"), list):
-                raws = payload["cases"]
-            elif isinstance(payload, list):
-                raws = payload
-            elif isinstance(payload, dict):
-                raws = [payload]
-            else:
-                continue
-            try:
-                stat_mtime = path.stat().st_mtime
+                file_stat = path.stat()
             except OSError:
-                stat_mtime = None
-            for raw in raws:
-                record = _case_from_raw(raw, path, now, stat_mtime)
-                if record is None:
-                    continue
-                old = records.get(record["case_id"])
-                if old is None or (
-                        record["version"], record["updated_at"],
-                        record["source"] != "legacy") > (
-                        old["version"], old["updated_at"],
-                        old["source"] != "legacy"):
-                    records[record["case_id"]] = record
-    return sorted(records.values(), key=lambda item: item["case_id"])
+                continue
+            if not S_ISREG(file_stat.st_mode):
+                continue
+            file_entries.append((path, file_stat))
+    signature = tuple(
+        (str(path), file_stat.st_mtime_ns, file_stat.st_ctime_ns,
+         file_stat.st_size)
+        for path, file_stat in file_entries)
+    cache_key = (tuple(str(root) for root in resolved), signature)
+    with _LOAD_CACHE_LOCK:
+        cached = _LOAD_CACHE.get(cache_key)
+        if cached is not None:
+            _LOAD_CACHE.move_to_end(cache_key)
+            return cached
+
+    records: dict[str, dict] = {}
+    for path, file_stat in file_entries:
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        if isinstance(payload, dict) and isinstance(
+                payload.get("cases"), list):
+            raws = payload["cases"]
+        elif isinstance(payload, list):
+            raws = payload
+        elif isinstance(payload, dict):
+            raws = [payload]
+        else:
+            continue
+        for raw in raws:
+            record = _case_from_raw(raw, path, now, file_stat.st_mtime)
+            if record is None:
+                continue
+            old = records.get(record["case_id"])
+            if old is None or (
+                    record["version"], record["updated_at"],
+                    record["source"] != "legacy") > (
+                    old["version"], old["updated_at"],
+                    old["source"] != "legacy"):
+                records[record["case_id"]] = record
+    result = sorted(records.values(), key=lambda item: item["case_id"])
+    with _LOAD_CACHE_LOCK:
+        _LOAD_CACHE[cache_key] = result
+        if len(_LOAD_CACHE) > _LOAD_CACHE_MAX:
+            _LOAD_CACHE.popitem(last=False)
+    return result
 
 
 @dataclass
