@@ -55,6 +55,13 @@ class TestPlanPathPolicy(unittest.TestCase):
         self.assertEqual(
             classify_path("src/PlanSystem.py", REPO_ROOT, write=False).verdict,
             ALLOW)
+        # 拆分后的实现文件仍受保护,避免只保护兼容入口。
+        self.assertEqual(
+            classify_path("src/plan_system/system.py", REPO_ROOT,
+                          write=True).verdict, CONFIRM)
+        self.assertEqual(
+            classify_path("src/plan_system/executor.py", REPO_ROOT,
+                          write=True).verdict, CONFIRM)
         self.assertEqual(
             classify_path("src/StrategyRouter.py", REPO_ROOT,
                           write=True).verdict, CONFIRM)

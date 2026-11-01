@@ -53,6 +53,12 @@ def file_lock(path: Path, exclusive: bool = True):
                 os.close(fd)
 
 
+'''
+原子写入
+    1. 不是直接往目标文件里写，而是先写一个临时文件，写完再“啪”一下重命名成目标名。
+    2. 好处是：万一写到一半程序崩了、断电了，目标文件要么是“完整的旧版”，要么是“完整的新版”，绝不会出现“写了一半的残缺档案”。
+    3. 如果是直接写，崩溃就会留下半截 JSON，训练框架读到会报错。
+'''
 def atomic_write_text(path: Path, text: str):
     """写临时文件 → fsync → 原子替换,避免半截文件被并发读者看到。"""
     path = Path(path)

@@ -212,7 +212,7 @@ class TestRoles(unittest.TestCase):
                 hooks=None, audit=AuditLog(directory=self.tmp / "audit"),
                 approval=ApprovalGate(interactive=False, auto_approve=set()),
                 sandbox=Sandbox(mode="off")))
-        with mock.patch("src.TeammateSystem.threading.Thread") as thread_cls:
+        with mock.patch("src.teammate_system.agent.threading.Thread") as thread_cls:
             thread_cls.return_value.start.return_value = None
             first = system.spawn("a", "developer", "p")
             second = system.spawn("b", "developer", "p")

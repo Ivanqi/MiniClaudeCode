@@ -32,11 +32,19 @@ from src.TrajectoryLogger import TrajectoryLogger
 from src.TranscriptStore import TranscriptStore
 from src.WorktreeSystem import WORKTREE_SYSTEM
 
-
+'''
+wire 是 AgentLoop 的“总装配线”
+它把散落在各处的子系统（模型路由、工具调度、审计、记忆、任务、团队协作等）
+逐个实例化并挂载到 owner（即 AgentLoop 实例）上
+同时通过依赖注入把这些组件互相连接起来
+让后续代码可以直接用 owner.xxx 的方式访问
+'''
 def wire(owner, client, router: ModelRouter | None,
          dispatcher: ToolDispatcher | None, step_runner,
          tool_names_provider):
     """把全部子系统挂到 owner 上;保持原 AgentLoop 属性访问方式。"""
+    # 基础设施（底层组件）
+    # 这些都是全局单例或轻量对象，直接挂载即可。
     owner.client = client
     owner.router = router or ModelRouter(client)
     owner.basic = BASIC_OPER
@@ -48,6 +56,7 @@ def wire(owner, client, router: ModelRouter | None,
     owner.prompt_builder = PromptBuilder()
     owner.trajectory = TrajectoryLogger()
 
+    # 存储与审计（有依赖链）
     owner.audit = AuditLog()
     owner.memory = MemoryStore(audit=owner.audit)
     owner.transcripts = TranscriptStore(memory=owner.memory)
@@ -56,6 +65,8 @@ def wire(owner, client, router: ModelRouter | None,
         router=owner.router, transcript_store=owner.transcripts,
         memory_store=owner.memory)
     owner.memories = Memories(memory=owner.memory, tasks=TASK_SYSTEM)
+
+    # 安全与工具调度
     owner.approval = ApprovalGate()
     owner.sandbox = Sandbox()
     owner.metrics = TEAM_METRICS
@@ -71,6 +82,10 @@ def wire(owner, client, router: ModelRouter | None,
             basic=owner.basic, hooks=owner.hooks, audit=owner.audit,
             approval=owner.approval, sandbox=owner.sandbox,
             circuit_breaker=owner.circuit_breaker)
+
+    # 团队协作与子代理（高层编排）
+    # LeadMonitor 依赖 owner.teammates 的内部组件（protocol、tasks、teammates、bus）
+    # 所以 teammates 必须先于 lead_monitor 创建
     owner.teammates = TeammateSystem(
         client, router=owner.router, dispatcher=owner.dispatcher,
         metrics=owner.metrics)
@@ -88,6 +103,7 @@ def wire(owner, client, router: ModelRouter | None,
         teammates=owner.teammates.teammates, bus=owner.teammates.bus,
         metrics=owner.metrics)
 
+    # 工具注册表
     owner.tool_registry = ToolRegistry(owner.mcp)
     for system in (owner.basic, TASK_SYSTEM, WORKTREE_SYSTEM, SKILL_SYSTEM,
                    owner.cron, owner.mcp, owner.teammates, owner.subagents,
@@ -95,6 +111,7 @@ def wire(owner, client, router: ModelRouter | None,
                    owner.review, owner.integration, owner.compact):
         owner.tool_registry.register_system(system)
 
+    # 计划系统与初始化
     owner.plans = PlanSystem(
         client, router=owner.router, tasks=TASK_SYSTEM,
         memory=owner.memory, store=PlanStore(), approval=owner.approval,

@@ -52,30 +52,43 @@ class TrajectoryLogger:
         record = {
             "messages": redact_obj(messages),
             "metadata": {
-                "outcome": outcome,
-                "turn_id": getattr(state, "turn_id", ""),
+                "outcome": outcome, # local-ok/escalated/api/error
+                "turn_id": getattr(state, "turn_id", ""), # 唯一编号
                 "caller": getattr(state, "caller", "main"),
                 "started_local": bool(state.started_local),
                 "escalation_reason": state.escalation_reason,
+                # 错误信息，但只截前 200 字符,错误堆栈可能几 KB，全存进去档案会臃肿，前 200 字符足够定位问题。
                 "error": str(error)[:200],
                 "parse_failures": state.parse_failures,
-                "tool_errors": state.tool_error_count,
-                "budget": getattr(state, "budget_snapshot", {}),
-                "loop_signals": list(getattr(state, "loop_signals", []))[-20:],
+                "tool_errors": state.tool_error_count, # 工具调用报错次数
+                "budget": getattr(state, "budget_snapshot", {}), # 这次接待花了多少 token、时间
+                # 循环信号，只留最近 20 条（[-20:]）
+                # 一个死循环可能产生几千条重复信号，全存没意义，最近 20 条足够看出“它在反复干什么”。
+                "loop_signals": list(getattr(state, "loop_signals", []))[-20:], 
                 "loop_signal_counts": dict(
                     getattr(state, "loop_signal_counts", {})),
+                # 失败尝试，只留最近 10 条
                 "failed_attempts": list(
                     getattr(state, "failed_attempts", []))[-10:],
+                # 工具调用事件，只留最近 50 条
                 "tool_events": list(getattr(state, "tool_events", []))[-50:],
                 "loop_stop_reason": getattr(state, "loop_stop_reason", ""),
             },
         }
         try:
+            # 归档入库
+            # 确认档案柜目录存在，并且权限是私有的（只有当前用户能读写）
+            # 训练数据可能含业务对话，不能让同机器其他用户随便翻
             ensure_private_dir(self.directory)
+            # 当前秒级时间戳
             stamp = f"{int(time.time())}"
+            # 从流水号生成器拿下一个号，比如 1
             seq = next(self._counter)
+
             path = self.directory / (
                 f"turn_{stamp}_{seq:04d}_{uuid.uuid4().hex[:8]}.jsonl")
+
+            # 跨进程文件锁
             with file_lock(self.directory / ".training.lock"):
                 atomic_write_text(
                     path, json.dumps(record, default=str,
@@ -83,6 +96,6 @@ class TrajectoryLogger:
             Terminal.info("trajectory",
                           f"{outcome} → {path.name}", Terminal.MAGENTA)
             return str(path)
-        except Exception as error:
+        except Exception as error: # 兜底
             Terminal.info("trajectory", f"log failed: {error}", Terminal.RED)
             return None
